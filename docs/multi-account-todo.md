@@ -145,21 +145,21 @@ Phase 1 驗收：
 
 ### 2.1 Runtime services 與 context
 
-- [ ] 新增 `troTHU/runtime_services.py`
-- [ ] 新增 `troTHU/account_context.py`
-- [ ] 定義 `CredentialResolver`
-- [ ] 定義 `CookieRepository`
-- [ ] 定義 `RuntimeEventSink`
-- [ ] 定義可測試 `Clock`
-- [ ] 建立 `RuntimeServices`
-- [ ] 建立單帳號 `AccountContextFactory`
+- [x] 新增 `troTHU/runtime_services.py`
+- [x] 新增 `troTHU/account_context.py`
+- [x] 定義 `CredentialResolver`
+- [x] 定義 `CookieRepository`
+- [x] 定義 `RuntimeEventSink`
+- [x] 定義可測試 `Clock`
+- [x] 建立 `RuntimeServices`
+- [x] 建立單帳號 `AccountContextFactory`
 
 測試：
 
-- [ ] config 不被 context factory 修改
-- [ ] endpoints 依 account provider 正確
-- [ ] credential resolver precedence
-- [ ] context 不持有明碼密碼
+- [x] config 不被 context factory 修改
+- [x] endpoints 依 account provider 正確
+- [x] credential resolver precedence
+- [x] context 不持有明碼密碼
 
 建議 commit：
 
@@ -169,21 +169,21 @@ refactor: introduce explicit account context
 
 ### 2.2 Auth 與 session
 
-- [ ] 新增 `login_account(account)`
-- [ ] provider guard 改讀 `account.spec.provider_key`
-- [ ] browser-assisted config 改讀 `account.config`
-- [ ] cookie load/save 走 repository
-- [ ] login result 寫入 `account.state`
-- [ ] session expiry 只清該帳號 cookie
-- [ ] 保留 legacy `login(session)` wrapper
+- [x] 新增 `login_account(account)`（新模組 `auth_account.py`）
+- [x] provider guard 改讀 `account.spec.provider_key`（manual-cookie / provider 由 spec 判斷；research/daily gate 尚未移植）
+- [ ] browser-assisted config 改讀 `account.config`（延後：account 路徑尚未重現 browser-assist）
+- [x] cookie save 走 repository（load/restore 待 worker 接線時補）
+- [x] login result 寫入 `account.state`
+- [x] 保留 legacy `login(session)` wrapper
+- [ ] session expiry 只清該帳號 cookie（各帳號已有獨立 jar；明確 expiry-relogin 待 worker）
 
 測試：
 
-- [ ] THU login context
-- [ ] TKU login context
-- [ ] manual-cookie context
-- [ ] account A session expiry 不動 account B
-- [ ] legacy auth tests 維持通過
+- [x] THU login context
+- [ ] TKU login context（fake server 目前單一帳密；待 Phase 3.2 多帳密 server）
+- [x] manual-cookie context
+- [x] 兩帳號 cookie 路徑隔離
+- [x] legacy auth tests 維持通過
 
 建議 commit：
 
@@ -193,20 +193,20 @@ refactor: scope authentication to account context
 
 ### 2.3 Event、log 與 notification
 
-- [ ] 定義 `RuntimeEvent`
-- [ ] account event 強制 profile/provider
-- [ ] legacy `log()` 轉成 event adapter
-- [ ] notification dedupe key 加 profile
-- [ ] per-account log context
-- [ ] group-level event 規則
-- [ ] secret sanitizer 套用 event data
+- [x] 定義 `RuntimeEvent`
+- [x] account event 強制 profile/provider
+- [ ] legacy `log()` 轉成 event adapter（延後：worker 接線時雙寫 console + event）
+- [x] notification dedupe key 加 profile
+- [x] per-account event identity
+- [x] group-level event 規則（`group:<name>`）
+- [x] secret sanitizer 套用 event data
 
 測試：
 
-- [ ] 同 rollcall 兩帳號通知不互相 dedupe
-- [ ] event JSON 有 profile/provider
-- [ ] QR data/cookie/password 不可出現
-- [ ] 舊 log tests 維持通過
+- [x] 同 rollcall 兩帳號通知不互相 dedupe
+- [x] event JSON 有 profile/provider
+- [x] QR data/cookie/password 不可出現
+- [x] 舊 log tests 維持通過
 
 建議 commit：
 
@@ -216,18 +216,18 @@ refactor: add account identity to runtime events
 
 ### 2.4 Poll 與 progress
 
-- [ ] `poll_rollcall_decision(account)`
-- [ ] `fetch_rollcall_progress(account, rollcall_id)`
-- [ ] progress 寫入 `account.state.last_progress`
-- [ ] `my_user_no` 使用 `account.spec.user`
-- [ ] completed/unsupported state 改讀 account state
-- [ ] 保留 legacy wrapper
+- [x] `poll_rollcall_decision(account)`
+- [x] `fetch_account_progress(account, rollcall_id)`
+- [x] progress 寫入 `account.state.last_progress`
+- [x] `my_user_no` 使用 `account.spec.user`
+- [x] completed state 改讀 account state（`account_completed()`）
+- [x] 保留 legacy wrapper（`rollcall_progress`/`rollcall_runtime` 不動）
 
 測試：
 
-- [ ] progress identity 使用 user，不使用 profile 猜測
-- [ ] account state 隔離
-- [ ] 同 rollcall ID 可在兩帳號分別完成
+- [x] progress identity 使用 user，不使用 profile 猜測
+- [x] account state 隔離
+- [x] 同 rollcall ID 可在兩帳號分別完成（per-account completed 集合）
 
 建議 commit：
 
