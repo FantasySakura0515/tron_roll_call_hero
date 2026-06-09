@@ -1,0 +1,583 @@
+# 多帳號重構 TODO
+
+- 狀態：Planning
+- 日期：2026-06-09
+- 架構文件：[multi-account-framework.md](architecture/multi-account-framework.md)
+- ADR：[0001-multi-account-runtime.md](architecture/0001-multi-account-runtime.md)
+
+## 使用方式
+
+- 一次只進行一個 phase。
+- 每個 checkbox 對應可驗證的結果，不以「有寫程式」視為完成。
+- 每個建議 commit 完成後先跑該 phase 測試，再跑完整 suite。
+- 不可跳過 single-account migration 直接啟用並行。
+- README 在功能端到端通過前不得宣稱真正多帳號已完成。
+
+## 全程守則
+
+- [ ] 新核心模組不 import `troTHU.runtime_context`
+- [ ] 並行路徑不呼叫 `switch_profile`
+- [ ] 並行路徑不讀寫全域 active provider
+- [ ] 每個 account event 都有 `profile` 與 `provider_key`
+- [ ] 密碼、cookie、QR data 不進 log、snapshot、exception message
+- [ ] 單帳號 CLI 行為保持相容
+- [ ] 每個 commit 通過 `git diff --check`
+- [ ] 每個 phase 結束跑 `uv run python -m unittest discover -v`
+
+## Phase 0：基線與設計
+
+狀態：完成
+
+- [x] 初始化 Git repository
+- [x] 建立重構前 baseline commit `c6ffdc6`
+- [x] 確認 `config.yaml`、`state/`、`log/`、`.venv/` 被忽略
+- [x] 完整執行 574 項測試
+- [x] 建立 ADR 0001
+- [x] 定義模組框架
+- [x] 建立分階段 TODO
+
+驗收：
+
+- [x] 工作樹沒有未追蹤敏感檔案
+- [x] baseline 可獨立 checkout
+- [x] 架構決策與目前限制有文件
+
+## Phase 1：Domain 與 Repository
+
+目標：建立新框架的純模型與 persistence boundary，不接入監控。
+
+### 1.1 Account models
+
+- [ ] 新增 `troTHU/account_models.py`
+- [ ] 定義 `AccountSpec`
+- [ ] 定義 `CredentialRef` / `CredentialSource`
+- [ ] 定義 `AccountConfig`
+- [ ] 定義 `AccountRuntimeState`
+- [ ] 定義 `AccountStateSnapshot`
+- [ ] 定義 `AccountWorkerSnapshot`
+- [ ] 定義 `SubmissionStatus`
+- [ ] 定義 `SubmissionResult`
+- [ ] 定義 `GroupSubmissionResult`
+- [ ] 確認 secret 欄位不在 model 中
+
+測試：
+
+- [ ] dataclass equality / immutability
+- [ ] snapshot serialization
+- [ ] result aggregation
+- [ ] repr 不含敏感值
+
+建議 commit：
+
+```text
+refactor: add account runtime domain models
+```
+
+### 1.2 Account registry
+
+- [ ] 新增 `troTHU/account_registry.py`
+- [ ] 從 normalized config 建立 `AccountSpec`
+- [ ] 單帳號 target resolution
+- [ ] 空白 now 單帳號推斷
+- [ ] group target resolution
+- [ ] mixed-provider group
+- [ ] missing credential skipped reason
+- [ ] unknown account/provider skipped reason
+- [ ] 保留輸入順序並去除重複帳號
+- [ ] 不在 resolution result 放密碼
+
+測試：
+
+- [ ] THU + THU group
+- [ ] THU + TKU mixed group
+- [ ] 缺密碼帳號
+- [ ] keyring credential ref
+- [ ] manual-cookie provider
+- [ ] 不存在的 group/account
+- [ ] JSON encode 不含密碼
+
+建議 commit：
+
+```text
+refactor: resolve monitor targets into account specs
+```
+
+### 1.3 Per-account repository
+
+- [ ] 新增 `troTHU/account_state_repository.py`
+- [ ] 定義 repository Protocol
+- [ ] 實作 file repository
+- [ ] runtime path：`state/accounts/<profile>/runtime.json`
+- [ ] cookie path：`state/accounts/<profile>/cookies.json`
+- [ ] temp file + `os.replace`
+- [ ] profile path normalization
+- [ ] corrupt file safe fallback
+- [ ] 舊 `account_runtime.json` migration reader
+- [ ] 舊 `state/cookies/<profile>.json` migration reader
+- [ ] snapshot sanitizer
+
+測試：
+
+- [ ] 兩帳號寫入互不覆蓋
+- [ ] atomic write shape
+- [ ] corrupt runtime
+- [ ] legacy migration
+- [ ] traversal profile name
+- [ ] sensitive fields redacted/rejected
+
+建議 commit：
+
+```text
+refactor: isolate persisted state by account
+```
+
+Phase 1 驗收：
+
+- [ ] `AccountRegistry.desired_specs()` 可產生群組所有帳號
+- [ ] repository 可獨立保存兩帳號
+- [ ] 未修改 `monitor_runtime.app_main`
+- [ ] 未啟用任何多帳號並行
+- [ ] 完整測試通過
+
+## Phase 2：單帳號走新 Context
+
+目標：移除單帳號核心流程對 active profile globals 的依賴。
+
+### 2.1 Runtime services 與 context
+
+- [ ] 新增 `troTHU/runtime_services.py`
+- [ ] 新增 `troTHU/account_context.py`
+- [ ] 定義 `CredentialResolver`
+- [ ] 定義 `CookieRepository`
+- [ ] 定義 `RuntimeEventSink`
+- [ ] 定義可測試 `Clock`
+- [ ] 建立 `RuntimeServices`
+- [ ] 建立單帳號 `AccountContextFactory`
+
+測試：
+
+- [ ] config 不被 context factory 修改
+- [ ] endpoints 依 account provider 正確
+- [ ] credential resolver precedence
+- [ ] context 不持有明碼密碼
+
+建議 commit：
+
+```text
+refactor: introduce explicit account context
+```
+
+### 2.2 Auth 與 session
+
+- [ ] 新增 `login_account(account)`
+- [ ] provider guard 改讀 `account.spec.provider_key`
+- [ ] browser-assisted config 改讀 `account.config`
+- [ ] cookie load/save 走 repository
+- [ ] login result 寫入 `account.state`
+- [ ] session expiry 只清該帳號 cookie
+- [ ] 保留 legacy `login(session)` wrapper
+
+測試：
+
+- [ ] THU login context
+- [ ] TKU login context
+- [ ] manual-cookie context
+- [ ] account A session expiry 不動 account B
+- [ ] legacy auth tests 維持通過
+
+建議 commit：
+
+```text
+refactor: scope authentication to account context
+```
+
+### 2.3 Event、log 與 notification
+
+- [ ] 定義 `RuntimeEvent`
+- [ ] account event 強制 profile/provider
+- [ ] legacy `log()` 轉成 event adapter
+- [ ] notification dedupe key 加 profile
+- [ ] per-account log context
+- [ ] group-level event 規則
+- [ ] secret sanitizer 套用 event data
+
+測試：
+
+- [ ] 同 rollcall 兩帳號通知不互相 dedupe
+- [ ] event JSON 有 profile/provider
+- [ ] QR data/cookie/password 不可出現
+- [ ] 舊 log tests 維持通過
+
+建議 commit：
+
+```text
+refactor: add account identity to runtime events
+```
+
+### 2.4 Poll 與 progress
+
+- [ ] `poll_rollcall_decision(account)`
+- [ ] `fetch_rollcall_progress(account, rollcall_id)`
+- [ ] progress 寫入 `account.state.last_progress`
+- [ ] `my_user_no` 使用 `account.spec.user`
+- [ ] completed/unsupported state 改讀 account state
+- [ ] 保留 legacy wrapper
+
+測試：
+
+- [ ] progress identity 使用 user，不使用 profile 猜測
+- [ ] account state 隔離
+- [ ] 同 rollcall ID 可在兩帳號分別完成
+
+建議 commit：
+
+```text
+refactor: scope polling and progress to account state
+```
+
+### 2.5 Number
+
+- [ ] 拆出 `NumberCodeResolver`
+- [ ] 拆出 `NumberSubmissionExecutor`
+- [ ] direct lookup 接受 account context
+- [ ] brute force 接受 account context
+- [ ] submit/verify 回傳 `SubmissionResult`
+- [ ] completed number 寫 account state
+- [ ] legacy `number(session, rcid)` wrapper
+
+測試：
+
+- [ ] direct code success
+- [ ] brute force fallback
+- [ ] unauthorized
+- [ ] submitted-unconfirmed
+- [ ] account A 完成不跳過 account B
+
+建議 commit：
+
+```text
+refactor: split number resolution from account submission
+```
+
+### 2.6 Radar
+
+- [ ] `radar(account, rollcall)`
+- [ ] empty answer 使用 account endpoints/session
+- [ ] global solver 使用 account config
+- [ ] fallback 使用 account state
+- [ ] submit/verify 回傳 `SubmissionResult`
+- [ ] completed radar 寫 account state
+- [ ] legacy wrapper
+
+測試：
+
+- [ ] empty answer success
+- [ ] global solver fallback
+- [ ] account-scoped provider endpoints
+- [ ] account A 完成不跳過 account B
+
+建議 commit：
+
+```text
+refactor: scope radar execution to account context
+```
+
+### 2.7 QR student path
+
+- [ ] manual payload submit 接受 account context
+- [ ] `finalize_qr_submission` 寫 account state
+- [ ] pending QR 以 profile/provider 記錄
+- [ ] clipboard 路徑只作用於指定 account
+- [ ] completed QR 寫 account state
+- [ ] teacher assist 暫時維持 single-account adapter
+
+測試：
+
+- [ ] manual payload account A/B 各自提交
+- [ ] pending registry account isolation
+- [ ] completed QR isolation
+- [ ] raw payload 不進 snapshot/log
+
+建議 commit：
+
+```text
+refactor: scope student QR execution to account context
+```
+
+### 2.8 AccountWorker 單帳號接線
+
+- [ ] 新增 `troTHU/account_worker.py`
+- [ ] worker 建立/關閉 session
+- [ ] worker login/retry state machine
+- [ ] worker schedule loop
+- [ ] worker poll/execute loop
+- [ ] worker runtime heartbeat
+- [ ] worker graceful stop
+- [ ] `app_main()` 單帳號改由 worker 執行
+- [ ] legacy console input/edit 行為保持
+
+測試：
+
+- [ ] worker lifecycle
+- [ ] retry backoff
+- [ ] shutdown closes session
+- [ ] 單帳號 fake server E2E
+- [ ] 現有 monitor tests 維持通過
+
+建議 commit：
+
+```text
+refactor: run single-account monitor through account worker
+```
+
+Phase 2 驗收：
+
+- [ ] 單帳號 monitor 不依賴 active profile globals
+- [ ] `rg` 新路徑無 `switch_profile`
+- [ ] `rg` 新路徑無 `get_active_profile(ctx.CONFIG)`
+- [ ] 單帳號 Number/Radar/QR E2E 通過
+- [ ] 完整測試通過
+
+## Phase 3：Supervisor 與 Number/Radar 多帳號
+
+### 3.1 Supervisor 基礎
+
+- [ ] 新增 `troTHU/account_supervisor.py`
+- [ ] worker task registry
+- [ ] start all desired specs
+- [ ] isolated stop
+- [ ] isolated failure/restart
+- [ ] exponential backoff
+- [ ] aggregate snapshot
+- [ ] graceful global shutdown
+
+測試：
+
+- [ ] 啟動兩 worker
+- [ ] 一個 worker crash，另一個持續
+- [ ] restart backoff
+- [ ] shutdown 全部完成
+
+建議 commit：
+
+```text
+feat: supervise independent account workers
+```
+
+### 3.2 Fake server 多帳號模型
+
+- [ ] fake server 支援 credential map
+- [ ] 每帳號不同 session cookie
+- [ ] request 可識別 authenticated account
+- [ ] 每帳號 student rollcall status
+- [ ] shared rollcall definition
+- [ ] 可指定某帳號 login/session/submit failure
+
+測試：
+
+- [ ] 不同帳號 cookie 不可互換
+- [ ] server request record 有 account
+- [ ] 狀態更新只影響該帳號
+
+建議 commit：
+
+```text
+test: model multiple authenticated students in fake server
+```
+
+### 3.3 Number artifact coordinator
+
+- [ ] 新增 `troTHU/rollcall_artifact_coordinator.py`
+- [ ] key 為 provider + rollcall ID
+- [ ] direct code cache
+- [ ] brute-force single-flight
+- [ ] result TTL
+- [ ] error 不永久 cache
+- [ ] shutdown cancellation
+
+測試：
+
+- [ ] 兩 worker 同時請求只 resolve 一次
+- [ ] 每帳號 submit 一次
+- [ ] resolver failure 可重試
+- [ ] 不同 provider 不共享
+
+建議 commit：
+
+```text
+feat: coordinate shared number code discovery
+```
+
+### 3.4 開啟 group monitor
+
+- [ ] `application_runtime.py` 組裝 supervisor
+- [ ] `now:class A` 啟動全部 worker
+- [ ] mixed-provider group
+- [ ] per-account startup report
+- [ ] partial login failure report
+- [ ] group Number 真實提交
+- [ ] group Radar 真實提交
+- [ ] 移除/棄用 `planned` fan-out 成功訊息
+
+E2E：
+
+- [ ] 兩帳號同時監測 Number
+- [ ] 兩帳號各自 confirmed
+- [ ] 兩帳號同時監測 Radar
+- [ ] 兩帳號各自 confirmed
+- [ ] 一帳號 login fail，另一帳號成功
+- [ ] 一帳號 session expired，只重登該帳號
+
+建議 commit：
+
+```text
+feat: monitor and answer number and radar for account groups
+```
+
+Phase 3 驗收：
+
+- [ ] 真正多帳號 Number/Radar 可運作
+- [ ] 每帳號 session/state/cookie 隔離
+- [ ] partial failure 不停止全組
+- [ ] 完整測試通過
+
+## Phase 4：QR Coordinator
+
+### 4.1 Manual QR fan-out
+
+- [ ] QR payload 解析一次
+- [ ] 路由到 matching active workers
+- [ ] 每 worker 自己 submit/verify
+- [ ] 回傳 `GroupSubmissionResult`
+- [ ] partial failure 顯示 profile
+- [ ] 未啟動 worker 可選擇 temporary account execution
+
+測試：
+
+- [ ] 兩帳號 submitted/confirmed
+- [ ] 一成功一失敗
+- [ ] provider mismatch
+- [ ] raw payload 不進 result/log
+
+建議 commit：
+
+```text
+feat: submit manual QR through account workers
+```
+
+### 4.2 Teacher QR coordinator
+
+- [ ] 新增 `troTHU/teacher_qr_coordinator.py`
+- [ ] teacher session ownership
+- [ ] teacher login retry
+- [ ] course resolution
+- [ ] prepare single-flight
+- [ ] rotating data memory distribution
+- [ ] interested profile tracking
+- [ ] stop teacher rollcall lifecycle
+- [ ] shutdown cleanup
+- [ ] coordinator failure 不影響 Number/Radar
+
+測試：
+
+- [ ] 兩 student 只 create 一次 teacher rollcall
+- [ ] 兩 student 使用各自 session submit
+- [ ] QR data rotation
+- [ ] all complete 後 stop
+- [ ] source rollcall close 後 stop
+- [ ] teacher login fail
+- [ ] raw data 不落地
+
+建議 commit：
+
+```text
+feat: coordinate teacher-assisted QR across accounts
+```
+
+Phase 4 驗收：
+
+- [ ] Number/Radar/Manual QR/Teacher QR 都有 per-account result
+- [ ] teacher-side operation single-flight
+- [ ] QR secret 不持久化
+- [ ] 完整測試通過
+
+## Phase 5：Reload、Bot、狀態與發佈
+
+### 5.1 Config reload
+
+- [ ] watcher 讀新 config
+- [ ] registry 建新 desired specs
+- [ ] supervisor reconcile
+- [ ] add/remove/restart/keep report
+- [ ] 修改單一帳號只重啟該 worker
+- [ ] 無效 config 保留現有 worker
+
+### 5.2 Status 與 console
+
+- [ ] supervisor summary
+- [ ] 每帳號 phase/login/check/error
+- [ ] interactive console 不互相覆寫
+- [ ] JSON status 包含 accounts
+- [ ] dashboard 聚合 per-account repository
+
+### 5.3 Bot
+
+- [ ] `start/stop` 真正控制 worker
+- [ ] `force` 路由 live worker
+- [ ] `reauth` 只重登指定 account
+- [ ] `qr all` 路由 supervisor
+- [ ] authorization 規則保持
+- [ ] status 顯示真實 worker state
+
+### 5.4 Packaging
+
+- [ ] PyInstaller hidden imports
+- [ ] Windows console smoke
+- [ ] config reload smoke
+- [ ] shutdown smoke
+- [ ] 打包檔不含 state/config/log
+
+### 5.5 文件
+
+- [ ] README 修正現有「多帳號」描述
+- [ ] 寫 group 實際執行方式
+- [ ] 寫 per-account status/partial failure
+- [ ] 寫 mixed-provider 限制
+- [ ] 寫 migration 注意事項
+- [ ] release notes
+
+建議 commits：
+
+```text
+feat: reconcile account workers after config reload
+feat: route bot controls to account supervisor
+feat: expose aggregate multi-account runtime status
+docs: document real multi-account monitoring
+```
+
+Phase 5 驗收：
+
+- [ ] config reload 不需重啟整個程式
+- [ ] Bot 與 console 使用同一 supervisor
+- [ ] Windows release smoke 通過
+- [ ] README 與實際行為一致
+- [ ] release checklist 通過
+
+## 最終 Definition of Done
+
+- [ ] `now:class A` 會啟動群組所有有效帳號
+- [ ] 每帳號有獨立 session、cookie、runtime state
+- [ ] Number 每帳號 independently confirmed
+- [ ] Radar 每帳號 independently confirmed
+- [ ] Manual QR 每帳號 independently confirmed
+- [ ] Teacher QR single-flight 且每帳號 independently confirmed
+- [ ] 一帳號失敗不停止其他帳號
+- [ ] mixed-provider group 有測試
+- [ ] config reload 有測試
+- [ ] shutdown 無未關閉 session/task
+- [ ] 日誌、通知、狀態不洩漏 secret
+- [ ] 原有單帳號流程相容
+- [ ] 完整 unittest suite 通過
+- [ ] release checklist 通過
+- [ ] README 不再把 planned fan-out 描述成已完成
+
