@@ -96,6 +96,7 @@ HIDDEN_IMPORTS = sorted(
             "troTHU.runtime_context",
             "troTHU.runtime_helpers",
             "troTHU.runtime_services",
+            "troTHU.runtime_events",
             "troTHU.account_context",
             "troTHU.simple_config",
             "troTHU.group_runtime",
