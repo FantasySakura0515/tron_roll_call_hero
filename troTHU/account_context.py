@@ -39,8 +39,19 @@ class AccountContext:
         return self.spec.provider_key
 
 
-def endpoints_for_provider(provider_key: str) -> TronHttpEndpoints:
-    return endpoints_from_provider(providers.get_provider(provider_key).to_config())
+def _provider_config(config: Mapping[str, Any], provider_key: str) -> Mapping[str, Any]:
+    """Prefer the normalized config's per-provider override (e.g. a custom tenant
+    base_url) over the static provider definition."""
+    provider = config.get("provider") if isinstance(config, Mapping) else None
+    if isinstance(provider, Mapping):
+        available = provider.get("available")
+        if isinstance(available, Mapping) and isinstance(available.get(provider_key), Mapping):
+            return available[provider_key]
+    return providers.get_provider(provider_key).to_config()
+
+
+def endpoints_for_provider(provider_key: str, config: Optional[Mapping[str, Any]] = None) -> TronHttpEndpoints:
+    return endpoints_from_provider(_provider_config(config or {}, provider_key))
 
 
 class AccountContextFactory:
@@ -66,7 +77,7 @@ class AccountContextFactory:
         return AccountContext(
             spec=spec,
             config=self._account_config,
-            endpoints=endpoints_for_provider(spec.provider_key),
+            endpoints=endpoints_for_provider(spec.provider_key, self._config),
             session=session,
             state=state if state is not None else AccountRuntimeState(),
             services=services if services is not None else self._services,

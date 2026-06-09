@@ -246,6 +246,50 @@ class CredentialSourceTest(unittest.TestCase):
         self.assertEqual(resolution.skipped[0].reason, "unknown_provider")
 
 
+class ProfileNameTest(unittest.TestCase):
+    """Legacy/YAML configs (no _simple metadata) key profiles by a local name
+    that may differ from the student id; that name must survive resolution."""
+
+    def make_named_config(self) -> dict:
+        return {
+            "accounts": {
+                "current": "my-local-name",
+                "profiles": {"my-local-name": {"user": "S123", "passwd": "P", "school": "thu"}},
+            }
+        }
+
+    def test_fallback_preserves_profile_name(self) -> None:
+        registry = AccountRegistry(self.make_named_config())
+        spec = registry.list_specs()[0]
+        self.assertEqual(spec.profile, "my-local-name")
+        self.assertEqual(spec.user, "S123")
+        self.assertEqual(spec.credential_ref.profile, "my-local-name")
+
+    def test_resolve_target_finds_by_profile_name_and_by_user(self) -> None:
+        registry = AccountRegistry(self.make_named_config())
+        self.assertEqual(registry.resolve_target("my-local-name").profiles, ("my-local-name",))
+        self.assertEqual(registry.resolve_target("S123").profiles, ("my-local-name",))
+
+    def test_credential_locator_receives_profile_name(self) -> None:
+        seen = {}
+
+        def locator(profile, user):
+            seen["profile"] = profile
+            seen["user"] = user
+            return CredentialSource.KEYRING
+
+        config = {
+            "accounts": {
+                "current": "local",
+                "profiles": {"local": {"user": "S9", "passwd": "", "school": "thu"}},
+            }
+        }
+        registry = AccountRegistry(config, credential_locator=locator)
+        spec = registry.list_specs()[0]
+        self.assertEqual(seen, {"profile": "local", "user": "S9"})
+        self.assertEqual(spec.credential_ref.source, CredentialSource.KEYRING)
+
+
 class SafetyTest(unittest.TestCase):
     def test_resolution_json_has_no_password(self) -> None:
         config = make_config(

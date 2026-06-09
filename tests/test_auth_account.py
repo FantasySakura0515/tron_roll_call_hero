@@ -116,6 +116,22 @@ class AuthAccountTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(state.ok)
         self.assertEqual(self.repo.load_cookies("alpha"), [])
 
+    async def test_login_emits_runtime_event(self) -> None:
+        from troTHU.runtime_events import RuntimeEvent
+
+        config = make_config([{"user": "user1", "passwd": "pass1", "school": "thu"}])
+        spec = make_spec("alpha", "user1", "thu")
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            context = self.make_context(config, spec, session)
+            await login_account(context)
+
+        events = context.services.events.events
+        self.assertTrue(events)
+        self.assertIsInstance(events[0], RuntimeEvent)
+        self.assertEqual(events[0].event, "login")
+        self.assertEqual(events[0].profile, "alpha")
+        self.assertEqual(events[0].provider_key, "thu")
+
     async def test_missing_credentials_short_circuits(self) -> None:
         config = make_config([{"user": "user1", "passwd": "", "school": "thu"}])
         spec = make_spec("alpha", "user1", "thu")

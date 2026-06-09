@@ -28,6 +28,7 @@ from typing import Any, List, Mapping, Tuple
 from troTHU import providers
 from troTHU.account_context import AccountContext
 from troTHU.account_models import LoginState
+from troTHU.runtime_events import account_event
 from troTHU.tron_http import (
     LoginPageChangedError,
     LoginRejectedError,
@@ -78,12 +79,12 @@ def _record(account: AccountContext, state: LoginState) -> LoginState:
     events = getattr(services, "events", None) if services is not None else None
     if events is not None:
         events.emit(
-            {
-                "event": "login",
-                "profile": account.spec.profile,
-                "provider_key": account.spec.provider_key,
-                "status": state.status,
-            }
+            account_event(
+                "login",
+                profile=account.spec.profile,
+                provider_key=account.spec.provider_key,
+                status=state.status,
+            )
         )
     return state
 

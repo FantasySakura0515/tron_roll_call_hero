@@ -51,6 +51,18 @@ class AccountContextFactoryTest(unittest.TestCase):
         self.assertIn("ilearn.thu.edu.tw", thu.endpoints.base_url)
         self.assertIn("iclass.tku.edu.tw", tku.endpoints.base_url)
 
+    def test_factory_honors_config_provider_endpoint_override(self) -> None:
+        from troTHU import providers
+
+        config = make_config()
+        config["provider"] = providers.normalize_provider_config(
+            {"current": "thu", "available": {"thu": {"base_url": "https://tenant.example.edu"}}}
+        )
+        factory = AccountContextFactory(config)
+        context = factory.build(make_spec("S1", "thu"), session=DummySession())
+        self.assertIn("tenant.example.edu", context.endpoints.base_url)
+        self.assertIn("tenant.example.edu", context.endpoints.rollcalls_url)
+
     def test_factory_does_not_mutate_source_config(self) -> None:
         config = make_config()
         snapshot = copy.deepcopy(config)

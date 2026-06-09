@@ -96,8 +96,9 @@ class AccountRegistry:
             dict(group) for group in meta.get("groups", []) if isinstance(group, Mapping)
         ]
 
-        self._order: List[str] = []  # original-cased users, deduped, in order
-        self._resolved: Dict[str, Any] = {}  # user.lower() -> AccountSpec | SkippedAccount
+        self._order: List[str] = []  # profile names, deduped, in order
+        self._resolved: Dict[str, Any] = {}  # profile-name.lower() -> AccountSpec | SkippedAccount
+        self._user_to_profile: Dict[str, str] = {}  # user.lower() -> profile name
         self._specs: List[AccountSpec] = []
         self._spec_by_profile: Dict[str, AccountSpec] = {}
 
@@ -105,12 +106,14 @@ class AccountRegistry:
             user = _strip_value(entry.get("user"))
             if not user:
                 continue
-            key = user.lower()
+            profile = _strip_value(entry.get("profile")) or user
+            key = profile.lower()
             if key in self._resolved:
                 continue
-            self._order.append(user)
-            resolved = self._resolve_entry(user, entry)
+            self._order.append(profile)
+            resolved = self._resolve_entry(profile, user, entry)
             self._resolved[key] = resolved
+            self._user_to_profile.setdefault(user.lower(), profile)
             if isinstance(resolved, AccountSpec):
                 self._specs.append(resolved)
                 self._spec_by_profile[resolved.profile] = resolved
@@ -125,29 +128,43 @@ class AccountRegistry:
     def _account_entries(self, meta: Mapping[str, Any]) -> List[Dict[str, Any]]:
         accounts = meta.get("accounts")
         if isinstance(accounts, list) and accounts:
-            return [dict(item) for item in accounts if isinstance(item, Mapping)]
-        # Fallback for configs without simple metadata: use normalized profiles.
+            entries: List[Dict[str, Any]] = []
+            for item in accounts:
+                if isinstance(item, Mapping):
+                    entry = dict(item)
+                    # Simple config has no separate profile name; the user is the identity.
+                    entry.setdefault("profile", _strip_value(entry.get("user")))
+                    entries.append(entry)
+            return entries
+        # Fallback for configs without simple metadata: use normalized profiles,
+        # preserving the dict KEY as the local profile name (it may differ from user).
         profiles = self._config.get("accounts")
         if isinstance(profiles, Mapping):
             raw_profiles = profiles.get("profiles")
             if isinstance(raw_profiles, Mapping):
-                return [dict(item) for item in raw_profiles.values() if isinstance(item, Mapping)]
+                entries = []
+                for name, item in raw_profiles.items():
+                    if isinstance(item, Mapping):
+                        entry = dict(item)
+                        entry["profile"] = name
+                        entries.append(entry)
+                return entries
         return []
 
     # -- spec construction -------------------------------------------------
-    def _resolve_entry(self, user: str, entry: Mapping[str, Any]):
+    def _resolve_entry(self, profile: str, user: str, entry: Mapping[str, Any]):
         school = _strip_value(entry.get("school")) or _strip_value(entry.get("label"))
         provider_key = providers.normalize_provider_name(school)
         if provider_key not in providers.PROVIDERS:
-            return SkippedAccount(user=user, reason="unknown_provider", profile=user)
+            return SkippedAccount(user=user, reason="unknown_provider", profile=profile)
 
         provider = providers.PROVIDERS[provider_key]
-        credential_ref = self._resolve_credential_ref(user, provider, entry)
+        credential_ref = self._resolve_credential_ref(profile, user, provider, entry)
         if credential_ref is None:
-            return SkippedAccount(user=user, reason="missing_credential", profile=user)
+            return SkippedAccount(user=user, reason="missing_credential", profile=profile)
 
         return AccountSpec(
-            profile=user,
+            profile=profile,
             user=user,
             provider_key=provider_key,
             credential_ref=credential_ref,
@@ -155,18 +172,20 @@ class AccountRegistry:
             enabled=True,
         )
 
-    def _resolve_credential_ref(self, user: str, provider, entry: Mapping[str, Any]) -> Optional[CredentialRef]:
+    def _resolve_credential_ref(
+        self, profile: str, user: str, provider, entry: Mapping[str, Any]
+    ) -> Optional[CredentialRef]:
         # Manual-cookie providers authenticate with an imported cookie, no password.
         if getattr(provider, "auth_flow", "") == "manual_cookie_only":
-            return CredentialRef(CredentialSource.MANUAL_COOKIE, profile=user, user=user)
+            return CredentialRef(CredentialSource.MANUAL_COOKIE, profile=profile, user=user)
 
         if self._locator is not None:
-            located = self._locator(user, user)
+            located = self._locator(profile, user)
             if located is not None:
-                return CredentialRef(located, profile=user, user=user)
+                return CredentialRef(located, profile=profile, user=user)
 
         if _has_credential(entry.get("passwd")):
-            return CredentialRef(CredentialSource.CONFIG, profile=user, user=user)
+            return CredentialRef(CredentialSource.CONFIG, profile=profile, user=user)
 
         return None
 
@@ -196,8 +215,18 @@ class AccountRegistry:
             return TargetResolution(kind="account", requested="", profiles=(self._specs[0].profile,))
         return TargetResolution(kind="empty", requested="")
 
-    def _resolve_account(self, requested: str) -> TargetResolution:
+    def _lookup(self, requested: str):
+        """Match a selector against a profile name first, then a user."""
         entry = self._resolved.get(requested.lower())
+        if entry is not None:
+            return entry
+        profile = self._user_to_profile.get(requested.lower())
+        if profile is not None:
+            return self._resolved.get(profile.lower())
+        return None
+
+    def _resolve_account(self, requested: str) -> TargetResolution:
+        entry = self._lookup(requested)
         if isinstance(entry, AccountSpec):
             return TargetResolution(kind="account", requested=requested, profiles=(entry.profile,))
         if isinstance(entry, SkippedAccount):
@@ -235,7 +264,7 @@ class AccountRegistry:
             if key in seen:
                 continue
             seen.add(key)
-            entry = self._resolved.get(key)
+            entry = self._lookup(user)
             if isinstance(entry, AccountSpec):
                 profiles.append(entry.profile)
             elif isinstance(entry, SkippedAccount):
