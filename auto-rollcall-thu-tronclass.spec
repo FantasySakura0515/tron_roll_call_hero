@@ -29,6 +29,7 @@ HIDDEN_IMPORTS = sorted(
         [
             "troTHU.account_models",
             "troTHU.account_registry",
+            "troTHU.account_state_repository",
             "troTHU.account_store",
             "troTHU.account_runtime_store",
             "troTHU.adapter_bridge",
