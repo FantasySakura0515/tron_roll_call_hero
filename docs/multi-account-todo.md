@@ -15,14 +15,14 @@
 
 ## 全程守則
 
-- [ ] 新核心模組不 import `troTHU.runtime_context`
-- [ ] 並行路徑不呼叫 `switch_profile`
-- [ ] 並行路徑不讀寫全域 active provider
-- [ ] 每個 account event 都有 `profile` 與 `provider_key`
-- [ ] 密碼、cookie、QR data 不進 log、snapshot、exception message
-- [ ] 單帳號 CLI 行為保持相容
-- [ ] 每個 commit 通過 `git diff --check`
-- [ ] 每個 phase 結束跑 `uv run python -m unittest discover -v`
+- [x] 新核心模組不 import `troTHU.runtime_context`（account_models / account_registry / account_state_repository，AST 測試驗證）
+- [ ] 並行路徑不呼叫 `switch_profile`（並行路徑尚未建立）
+- [ ] 並行路徑不讀寫全域 active provider（並行路徑尚未建立）
+- [ ] 每個 account event 都有 `profile` 與 `provider_key`（event 系統 Phase 2.3）
+- [ ] 密碼、cookie、QR data 不進 log、snapshot、exception message（snapshot 已達成；log/exception 待 Phase 2）
+- [ ] 單帳號 CLI 行為保持相容（目前未接線，574 baseline 維持通過；Phase 2 接線時再確認）
+- [x] 每個 commit 通過 `git diff --check`
+- [x] 每個 phase 結束跑 `uv run python -m unittest discover -v`
 
 ## Phase 0：基線與設計
 
@@ -48,24 +48,24 @@
 
 ### 1.1 Account models
 
-- [ ] 新增 `troTHU/account_models.py`
-- [ ] 定義 `AccountSpec`
-- [ ] 定義 `CredentialRef` / `CredentialSource`
-- [ ] 定義 `AccountConfig`
-- [ ] 定義 `AccountRuntimeState`
-- [ ] 定義 `AccountStateSnapshot`
-- [ ] 定義 `AccountWorkerSnapshot`
-- [ ] 定義 `SubmissionStatus`
-- [ ] 定義 `SubmissionResult`
-- [ ] 定義 `GroupSubmissionResult`
-- [ ] 確認 secret 欄位不在 model 中
+- [x] 新增 `troTHU/account_models.py`
+- [x] 定義 `AccountSpec`
+- [x] 定義 `CredentialRef` / `CredentialSource`
+- [x] 定義 `AccountConfig`
+- [x] 定義 `AccountRuntimeState`
+- [x] 定義 `AccountStateSnapshot`
+- [x] 定義 `AccountWorkerSnapshot`
+- [x] 定義 `SubmissionStatus`
+- [x] 定義 `SubmissionResult`
+- [x] 定義 `GroupSubmissionResult`
+- [x] 確認 secret 欄位不在 model 中
 
 測試：
 
-- [ ] dataclass equality / immutability
-- [ ] snapshot serialization
-- [ ] result aggregation
-- [ ] repr 不含敏感值
+- [x] dataclass equality / immutability
+- [x] snapshot serialization
+- [x] result aggregation
+- [x] repr 不含敏感值
 
 建議 commit：
 
@@ -75,26 +75,26 @@ refactor: add account runtime domain models
 
 ### 1.2 Account registry
 
-- [ ] 新增 `troTHU/account_registry.py`
-- [ ] 從 normalized config 建立 `AccountSpec`
-- [ ] 單帳號 target resolution
-- [ ] 空白 now 單帳號推斷
-- [ ] group target resolution
-- [ ] mixed-provider group
-- [ ] missing credential skipped reason
-- [ ] unknown account/provider skipped reason
-- [ ] 保留輸入順序並去除重複帳號
-- [ ] 不在 resolution result 放密碼
+- [x] 新增 `troTHU/account_registry.py`
+- [x] 從 normalized config 建立 `AccountSpec`
+- [x] 單帳號 target resolution
+- [x] 空白 now 單帳號推斷
+- [x] group target resolution
+- [x] mixed-provider group
+- [x] missing credential skipped reason
+- [x] unknown account/provider skipped reason
+- [x] 保留輸入順序並去除重複帳號
+- [x] 不在 resolution result 放密碼
 
 測試：
 
-- [ ] THU + THU group
-- [ ] THU + TKU mixed group
-- [ ] 缺密碼帳號
-- [ ] keyring credential ref
-- [ ] manual-cookie provider
-- [ ] 不存在的 group/account
-- [ ] JSON encode 不含密碼
+- [x] THU + THU group
+- [x] THU + TKU mixed group
+- [x] 缺密碼帳號
+- [x] keyring credential ref
+- [x] manual-cookie provider
+- [x] 不存在的 group/account
+- [x] JSON encode 不含密碼
 
 建議 commit：
 
@@ -104,26 +104,26 @@ refactor: resolve monitor targets into account specs
 
 ### 1.3 Per-account repository
 
-- [ ] 新增 `troTHU/account_state_repository.py`
-- [ ] 定義 repository Protocol
-- [ ] 實作 file repository
-- [ ] runtime path：`state/accounts/<profile>/runtime.json`
-- [ ] cookie path：`state/accounts/<profile>/cookies.json`
-- [ ] temp file + `os.replace`
-- [ ] profile path normalization
-- [ ] corrupt file safe fallback
-- [ ] 舊 `account_runtime.json` migration reader
-- [ ] 舊 `state/cookies/<profile>.json` migration reader
-- [ ] snapshot sanitizer
+- [x] 新增 `troTHU/account_state_repository.py`
+- [x] 定義 repository Protocol
+- [x] 實作 file repository
+- [x] runtime path：`state/accounts/<profile>/runtime.json`
+- [x] cookie path：`state/accounts/<profile>/cookies.json`
+- [x] temp file + `os.replace`
+- [x] profile path normalization
+- [x] corrupt file safe fallback
+- [x] 舊 `account_runtime.json` migration reader
+- [x] 舊 `state/cookies/<profile>.json` migration reader
+- [x] snapshot sanitizer
 
 測試：
 
-- [ ] 兩帳號寫入互不覆蓋
-- [ ] atomic write shape
-- [ ] corrupt runtime
-- [ ] legacy migration
-- [ ] traversal profile name
-- [ ] sensitive fields redacted/rejected
+- [x] 兩帳號寫入互不覆蓋
+- [x] atomic write shape
+- [x] corrupt runtime
+- [x] legacy migration
+- [x] traversal profile name
+- [x] sensitive fields redacted/rejected
 
 建議 commit：
 
@@ -133,11 +133,11 @@ refactor: isolate persisted state by account
 
 Phase 1 驗收：
 
-- [ ] `AccountRegistry.desired_specs()` 可產生群組所有帳號
-- [ ] repository 可獨立保存兩帳號
-- [ ] 未修改 `monitor_runtime.app_main`
-- [ ] 未啟用任何多帳號並行
-- [ ] 完整測試通過
+- [x] `AccountRegistry.desired_specs()` 可產生群組所有帳號
+- [x] repository 可獨立保存兩帳號
+- [x] 未修改 `monitor_runtime.app_main`
+- [x] 未啟用任何多帳號並行
+- [x] 完整測試通過（632 項：574 baseline + 58 新增）
 
 ## Phase 2：單帳號走新 Context
 
