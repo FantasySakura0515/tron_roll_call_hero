@@ -34,6 +34,7 @@ HIDDEN_IMPORTS = sorted(
             "troTHU.account_runtime_store",
             "troTHU.adapter_bridge",
             "troTHU.adapter_server",
+            "troTHU.auth_account",
             "troTHU.auth_runtime",
             "troTHU.app_blueprint",
             "troTHU.app_qr_experience",
