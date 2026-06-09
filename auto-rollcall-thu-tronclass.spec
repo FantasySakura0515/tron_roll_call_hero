@@ -92,6 +92,7 @@ HIDDEN_IMPORTS = sorted(
             "troTHU.rollcall_progress",
             "troTHU.rollcall_engine",
             "troTHU.rollcall_models",
+            "troTHU.rollcall_account",
             "troTHU.rollcall_runtime",
             "troTHU.runtime_context",
             "troTHU.runtime_helpers",
