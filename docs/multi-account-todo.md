@@ -477,19 +477,19 @@ Phase 3 驗收：
 
 ### 4.1 Manual QR fan-out
 
-- [ ] QR payload 解析一次
-- [ ] 路由到 matching active workers
-- [ ] 每 worker 自己 submit/verify
-- [ ] 回傳 `GroupSubmissionResult`
-- [ ] partial failure 顯示 profile
-- [ ] 未啟動 worker 可選擇 temporary account execution
+- [x] QR payload 解析一次（`troTHU/qr_fanout.py`，parsed 後分送 `submit_parsed_qr_account`）
+- [x] 路由到 matching active workers
+- [x] 每 worker 自己 submit/verify
+- [x] 回傳 `GroupSubmissionResult`
+- [x] partial failure 顯示 profile
+- [ ] 未啟動 worker 可選擇 temporary account execution（延後：目前回報 `worker_not_running` skip；臨時帳號執行待 bot/client 需求明確時再做）
 
 測試：
 
-- [ ] 兩帳號 submitted/confirmed
-- [ ] 一成功一失敗
-- [ ] provider mismatch
-- [ ] raw payload 不進 result/log
+- [x] 兩帳號 submitted/confirmed
+- [x] 一成功一失敗
+- [x] provider mismatch
+- [x] raw payload 不進 result/log
 
 建議 commit：
 

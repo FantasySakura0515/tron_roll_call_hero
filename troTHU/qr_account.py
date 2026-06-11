@@ -65,7 +65,32 @@ async def submit_qr_payload_account(
     *,
     pending_dir: Optional[Path] = None,
 ) -> SubmissionResult:
-    """Submit a manual QR payload for one account and report the outcome."""
+    """Parse and submit a manual QR payload for one account."""
+    try:
+        qr_data = parse_qr_payload(str(raw_payload or ""), base_url=account.endpoints.base_url)
+    except ValueError:
+        qr_data = None
+    if qr_data is None or not str(qr_data.rollcall_id or "").strip():
+        _emit(account, SubmissionStatus.FAILED.value, "")
+        return SubmissionResult(
+            profile=account.profile,
+            provider_key=account.provider_key,
+            rollcall_id="",
+            attendance_type=AttendanceType.QR,
+            status=SubmissionStatus.FAILED,
+            error_code="invalid_payload",
+        )
+    return await submit_parsed_qr_account(account, qr_data, pending_dir=pending_dir)
+
+
+async def submit_parsed_qr_account(
+    account: AccountContext,
+    qr_data: Any,
+    *,
+    pending_dir: Optional[Path] = None,
+) -> SubmissionResult:
+    """Submit an already-parsed QR payload for one account and report the outcome."""
+    rid = str(qr_data.rollcall_id or "").strip()
 
     def _result(status: SubmissionStatus, rid: str, error_code: str = "") -> SubmissionResult:
         _emit(account, status.value, rid)
@@ -78,11 +103,6 @@ async def submit_qr_payload_account(
             error_code=error_code,
         )
 
-    try:
-        qr_data = parse_qr_payload(str(raw_payload or ""), base_url=account.endpoints.base_url)
-    except ValueError:
-        return _result(SubmissionStatus.FAILED, "", error_code="invalid_payload")
-    rid = str(qr_data.rollcall_id or "").strip()
     if not rid:
         return _result(SubmissionStatus.FAILED, "", error_code="invalid_payload")
 
