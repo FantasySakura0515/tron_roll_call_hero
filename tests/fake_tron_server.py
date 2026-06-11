@@ -12,9 +12,25 @@ except (ImportError, ModuleNotFoundError):  # pragma: no cover - tests skip with
 
 
 class FakeTronServer:
-    def __init__(self, *, correct_number_code: str = "0001") -> None:
+    def __init__(
+        self,
+        *,
+        correct_number_code: str = "0001",
+        credentials: Optional[Dict[str, str]] = None,
+    ) -> None:
         self.correct_number_code = str(correct_number_code)
         self.session_cookie = "local-test-session"
+        # Multi-account model (Phase 3.2). Defaults preserve the legacy
+        # single-account behavior: one user1/pass1 credential and globally
+        # shared rollcall state. Set ``per_account_state = True`` to isolate
+        # attendance state per authenticated account.
+        self.credentials: Dict[str, str] = dict(credentials or {"user1": "pass1"})
+        self.per_account_state = False
+        self.expired_users: set = set()
+        self.fail_login_users: set = set()
+        self.fail_submit_users: set = set()
+        self.account_rollcall_present: Dict[Any, bool] = {}
+        self._extra_session_cookies: Dict[str, str] = {}
         self.rollcalls: List[Dict[str, Any]] = []
         self.current_semester: Dict[str, Any] = {
             "semester": {"id": 1122, "name": "Spring"},
@@ -151,16 +167,38 @@ class FakeTronServer:
             headers=script["headers"],
         )
 
+    def session_cookie_for(self, user: str) -> str:
+        if user == "user1":
+            return self.session_cookie
+        return self._extra_session_cookies.setdefault(user, "session-{}".format(user))
+
+    def expire_account_session(self, user: str) -> None:
+        self.expired_users.add(str(user))
+
+    def _request_user(self, request) -> Optional[str]:
+        if self.session_expired:
+            return None
+        cookie = request.cookies.get("session")
+        if not cookie:
+            return None
+        for user in self.credentials:
+            if self.session_cookie_for(user) == cookie and user not in self.expired_users:
+                return user
+        return None
+
     def _session_ok(self, request) -> bool:
-        return (
-            not self.session_expired
-            and request.cookies.get("session") == self.session_cookie
-        )
+        return self._request_user(request) is not None
 
     def _unauthorized_if_needed(self, request):
         if self._session_ok(request):
             return None
         return web.Response(status=401, text="unauthorized")
+
+    def _submit_failure_if_needed(self, request):
+        user = self._request_user(request)
+        if user and user in self.fail_submit_users:
+            return web.Response(status=500, text="scripted submit failure")
+        return None
 
     def set_radar_target(
         self,
@@ -190,12 +228,21 @@ class FakeTronServer:
         )
         return 6371000.0 * 2.0 * math.atan2(math.sqrt(haversine), math.sqrt(1.0 - haversine))
 
-    def _mark_rollcall_present(self, rollcall_id: str) -> None:
+    def _mark_rollcall_present(self, rollcall_id: str, user: Optional[str] = None) -> None:
+        if self.per_account_state and user:
+            self.account_rollcall_present[(str(user), str(rollcall_id))] = True
+            return
         for rollcall in self.rollcalls:
             if str(rollcall.get("rollcall_id") or rollcall.get("id")) == str(rollcall_id):
                 rollcall["status"] = "on_call_fine"
 
-    def _mark_student_rollcalls_present(self) -> None:
+    def _mark_student_rollcalls_present(self, user: Optional[str] = None) -> None:
+        if self.per_account_state and user:
+            for entry in self.student_rollcalls:
+                if str(entry.get("user_no")) == str(user):
+                    entry["rollcall_status"] = "on_call_fine"
+                    entry["status"] = "on_call_fine"
+            return
         self.student_rollcalls_status = "on_call_fine"
         for entry in self.student_rollcalls:
             entry["rollcall_status"] = "on_call_fine"
@@ -220,11 +267,13 @@ class FakeTronServer:
         if scripted is not None:
             return scripted
         data = await request.post()
-        if data.get("username") != "user1" or data.get("password") != "pass1":
+        user = str(data.get("username") or "")
+        if user in self.fail_login_users or self.credentials.get(user) != data.get("password"):
             return web.Response(text="bad credentials", status=200)
 
+        self.expired_users.discard(user)
         response = web.HTTPFound("/home")
-        response.set_cookie("session", self.session_cookie)
+        response.set_cookie("session", self.session_cookie_for(user))
         raise response
 
     async def home(self, _request):
@@ -237,6 +286,16 @@ class FakeTronServer:
         scripted = self._script_response("rollcalls")
         if scripted is not None:
             return scripted
+        user = self._request_user(request)
+        if self.per_account_state and user:
+            rollcalls = []
+            for rollcall in self.rollcalls:
+                rid = str(rollcall.get("rollcall_id") or rollcall.get("id"))
+                if self.account_rollcall_present.get((user, rid)):
+                    rollcall = dict(rollcall)
+                    rollcall["status"] = "on_call_fine"
+                rollcalls.append(rollcall)
+            return web.json_response({"rollcalls": rollcalls})
         return web.json_response({"rollcalls": self.rollcalls})
 
     async def current_semester_api(self, request):
@@ -261,18 +320,23 @@ class FakeTronServer:
         unauthorized = self._unauthorized_if_needed(request)
         if unauthorized is not None:
             return unauthorized
+        user = self._request_user(request)
         body = await request.json()
         attempt = {
             "rollcall_id": request.match_info["rollcall_id"],
             "body": body,
+            "user": user or "",
         }
         self.number_attempts.append(attempt)
+        failure = self._submit_failure_if_needed(request)
+        if failure is not None:
+            return failure
         scripted = self._script_response("number")
         if scripted is not None:
             return scripted
         if str(body.get("numberCode")) == self.correct_number_code:
-            self._mark_student_rollcalls_present()
-            self._mark_rollcall_present(request.match_info["rollcall_id"])
+            self._mark_student_rollcalls_present(user)
+            self._mark_rollcall_present(request.match_info["rollcall_id"], user)
             return web.json_response({"success": True, "status": "on_call_fine"})
         return web.json_response({"success": False, "message": "wrong number code"}, status=400)
 
@@ -291,6 +355,7 @@ class FakeTronServer:
         unauthorized = self._unauthorized_if_needed(request)
         if unauthorized is not None:
             return unauthorized
+        user = self._request_user(request)
         body = await request.json()
         self.radar_payload_field_names.append(sorted(str(key) for key in body.keys()))
         self.radar_answers.append(
@@ -298,16 +363,20 @@ class FakeTronServer:
                 "rollcall_id": request.match_info["rollcall_id"],
                 "body": body,
                 "field_names": sorted(str(key) for key in body.keys()),
+                "user": user or "",
             }
         )
+        failure = self._submit_failure_if_needed(request)
+        if failure is not None:
+            return failure
         scripted = self._script_response("radar")
         if scripted is not None:
             return scripted
         if "latitude" not in body:
             if self.radar_empty_answer_accepted:
                 if self.radar_empty_answer_marks_present:
-                    self._mark_student_rollcalls_present()
-                    self._mark_rollcall_present(request.match_info["rollcall_id"])
+                    self._mark_student_rollcalls_present(user)
+                    self._mark_rollcall_present(request.match_info["rollcall_id"], user)
                 return web.json_response({"success": True})
             return web.json_response(
                 {
@@ -321,8 +390,8 @@ class FakeTronServer:
         if self.radar_success or (
             distance is not None and distance <= self.radar_success_radius_meters
         ):
-            self._mark_student_rollcalls_present()
-            self._mark_rollcall_present(request.match_info["rollcall_id"])
+            self._mark_student_rollcalls_present(user)
+            self._mark_rollcall_present(request.match_info["rollcall_id"], user)
             return web.json_response({"success": True})
         return web.json_response(
             {
@@ -337,19 +406,24 @@ class FakeTronServer:
         unauthorized = self._unauthorized_if_needed(request)
         if unauthorized is not None:
             return unauthorized
+        user = self._request_user(request)
         body = await request.json()
         self.qr_answers.append(
             {
                 "rollcall_id": request.match_info["rollcall_id"],
                 "body": body,
                 "session_id": request.headers.get("x-session-id", ""),
+                "user": user or "",
             }
         )
+        failure = self._submit_failure_if_needed(request)
+        if failure is not None:
+            return failure
         scripted = self._script_response("qr")
         if scripted is not None:
             return scripted
-        self._mark_student_rollcalls_present()
-        self._mark_rollcall_present(request.match_info["rollcall_id"])
+        self._mark_student_rollcalls_present(user)
+        self._mark_rollcall_present(request.match_info["rollcall_id"], user)
         return web.json_response({"ok": True})
 
     async def student_rollcalls_api(self, request):

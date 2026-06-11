@@ -398,18 +398,18 @@ feat: supervise independent account workers
 
 ### 3.2 Fake server 多帳號模型
 
-- [ ] fake server 支援 credential map
-- [ ] 每帳號不同 session cookie
-- [ ] request 可識別 authenticated account
-- [ ] 每帳號 student rollcall status
-- [ ] shared rollcall definition
-- [ ] 可指定某帳號 login/session/submit failure
+- [x] fake server 支援 credential map（`FakeTronServer(credentials={...})`，預設 user1/pass1 保持相容）
+- [x] 每帳號不同 session cookie
+- [x] request 可識別 authenticated account（number/radar/qr record 含 `user`）
+- [x] 每帳號 student rollcall status（`per_account_state = True` 開啟隔離；預設 legacy 全域行為）
+- [x] shared rollcall definition（feed 共用定義，per-account 只 overlay status）
+- [x] 可指定某帳號 login/session/submit failure（`fail_login_users` / `expire_account_session` / `fail_submit_users`）
 
 測試：
 
-- [ ] 不同帳號 cookie 不可互換
-- [ ] server request record 有 account
-- [ ] 狀態更新只影響該帳號
+- [x] 不同帳號 cookie 不可互換
+- [x] server request record 有 account
+- [x] 狀態更新只影響該帳號
 
 建議 commit：
 
