@@ -97,6 +97,7 @@ HIDDEN_IMPORTS = sorted(
             "troTHU.research_sandbox",
             "troTHU.release_checklist",
             "troTHU.rollcall_artifact_coordinator",
+            "troTHU.teacher_qr_coordinator",
             "troTHU.rollcall_progress",
             "troTHU.rollcall_engine",
             "troTHU.rollcall_models",

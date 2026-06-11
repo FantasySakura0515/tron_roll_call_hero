@@ -499,26 +499,26 @@ feat: submit manual QR through account workers
 
 ### 4.2 Teacher QR coordinator
 
-- [ ] 新增 `troTHU/teacher_qr_coordinator.py`
-- [ ] teacher session ownership
-- [ ] teacher login retry
-- [ ] course resolution
-- [ ] prepare single-flight
-- [ ] rotating data memory distribution
-- [ ] interested profile tracking
-- [ ] stop teacher rollcall lifecycle
-- [ ] shutdown cleanup
-- [ ] coordinator failure 不影響 Number/Radar
+- [x] 新增 `troTHU/teacher_qr_coordinator.py`
+- [x] teacher session ownership（coordinator 擁有獨立 teacher session）
+- [x] teacher login retry（失敗回報 `teacher_not_ready`，下次 assist 重試；unauthorized 清 login 狀態）
+- [x] course resolution（config course_id 或 fetch_my_courses 第一筆）
+- [x] prepare single-flight
+- [x] rotating data memory distribution（每次 submit 前重新 fetch data，僅存在記憶體）
+- [x] interested profile tracking
+- [x] stop teacher rollcall lifecycle（all complete → stop；`stop_assist` 可由 source close 觸發）
+- [x] shutdown cleanup
+- [x] coordinator failure 不影響 Number/Radar（失敗以 per-account SubmissionResult 回報）
 
 測試：
 
-- [ ] 兩 student 只 create 一次 teacher rollcall
-- [ ] 兩 student 使用各自 session submit
-- [ ] QR data rotation
-- [ ] all complete 後 stop
-- [ ] source rollcall close 後 stop
-- [ ] teacher login fail
-- [ ] raw data 不落地
+- [x] 兩 student 只 create 一次 teacher rollcall
+- [x] 兩 student 使用各自 session submit
+- [x] QR data rotation
+- [x] all complete 後 stop
+- [x] source rollcall close 後 stop（`stop_assist` 行為驗證；worker 接 feed close 偵測待 Phase 5 整合）
+- [x] teacher login fail
+- [x] raw data 不落地（snapshot/event/status 皆驗證）
 
 建議 commit：
 
@@ -528,10 +528,10 @@ feat: coordinate teacher-assisted QR across accounts
 
 Phase 4 驗收：
 
-- [ ] Number/Radar/Manual QR/Teacher QR 都有 per-account result
-- [ ] teacher-side operation single-flight
-- [ ] QR secret 不持久化
-- [ ] 完整測試通過
+- [x] Number/Radar/Manual QR/Teacher QR 都有 per-account result
+- [x] teacher-side operation single-flight
+- [x] QR secret 不持久化
+- [x] 完整測試通過（735 項）
 
 ## Phase 5：Reload、Bot、狀態與發佈
 
