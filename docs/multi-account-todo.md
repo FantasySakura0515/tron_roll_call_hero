@@ -11,7 +11,39 @@
 - 每個 checkbox 對應可驗證的結果，不以「有寫程式」視為完成。
 - 每個建議 commit 完成後先跑該 phase 測試，再跑完整 suite。
 - 不可跳過 single-account migration 直接啟用並行。
+- 不可在 `AccountWorker` / `AccountSupervisor` 尚未接線前，把 client/console/bot 改成宣稱「真正多帳號」。
+- client、dashboard、bot 必須讀同一個 supervisor/runtime snapshot，不各自重新解析或切換 active profile。
 - README 在功能端到端通過前不得宣稱真正多帳號已完成。
+
+## 目前狀態快照
+
+已完成的是多帳號 runtime 的地基：
+
+- account domain models
+- target registry
+- per-account state/cookie repository
+- account context
+- account-scoped auth
+- account-scoped polling/progress
+- account event identity
+
+尚未完成的是「真正同時監控與簽到」：
+
+- Number/Radar/QR executor 尚未全面 account-scoped
+- `AccountWorker` 尚未建立
+- `AccountSupervisor` 尚未建立
+- `app_main()` 尚未改走 worker/supervisor
+- fake server 尚未支援多 authenticated students
+- client/console/dashboard/bot 尚未接 live supervisor
+
+## 優先順序守則
+
+1. 先讓單帳號完整走新 worker。
+2. 再讓多帳號 supervisor 同時跑 Number/Radar。
+3. 再接 QR fan-out / teacher QR coordinator。
+4. 最後才改 client、dashboard、bot、README。
+
+原因：client 如果先做，只會接到舊 global runtime 或半成品 wrapper，後面 supervisor 行為一改會整批重做。
 
 ## 全程守則
 
@@ -511,6 +543,17 @@ Phase 4 驗收：
 - [ ] add/remove/restart/keep report
 - [ ] 修改單一帳號只重啟該 worker
 - [ ] 無效 config 保留現有 worker
+- [ ] reload report 包含 added/removed/restarted/kept/skipped
+- [ ] reload 不清掉未受影響帳號 session/cookie
+- [ ] reload 失敗事件帶 profile/provider 或 group identity
+
+測試：
+
+- [ ] add account 只啟動新增 worker
+- [ ] remove account 只停止移除 worker
+- [ ] change credential/provider 只重啟該 worker
+- [ ] invalid config 保留既有 workers
+- [ ] group membership change reconciliation
 
 ### 5.2 Status 與 console
 
@@ -519,25 +562,91 @@ Phase 4 驗收：
 - [ ] interactive console 不互相覆寫
 - [ ] JSON status 包含 accounts
 - [ ] dashboard 聚合 per-account repository
+- [ ] console renderer 從 supervisor snapshot 讀資料
+- [ ] console 顯示 partial failure，不把單一帳號失敗當全域失敗
+- [ ] status JSON 顯示 desired accounts / running accounts / skipped accounts
+- [ ] status JSON 不包含 password/cookie/QR data
+- [ ] legacy single-account status 保持可讀
+
+測試：
+
+- [ ] two-account snapshot formatting
+- [ ] one failed / one healthy status
+- [ ] skipped account warning formatting
+- [ ] status JSON secret redaction
+- [ ] dashboard cards read per-account repository
 
 ### 5.3 Bot
 
+平台決策（2026-06-11）：LINE 與 Discord 都要完整接上 supervisor。
+
+- Discord 為日常主通道：gateway 長連線，本機執行不需公開 URL。
+- LINE 走 webhook：本機部署需 tunnel（Cloudflare Tunnel 或 ngrok）打進 `adapter_server.py`，設定步驟寫入文件。
+- 兩平台共用 `bot_runtime.py` 的授權 / audit / command mapping 層，adapter 只負責平台 I/O。
+- 兩平台指令集一致：`status / start / stop / force / reauth / qr` 全部對應 supervisor 操作。
+
+- [ ] Discord gateway adapter 接 live supervisor
+- [ ] LINE webhook adapter 接 live supervisor
+- [ ] 兩平台指令集一致（同一 command mapping 層）
+- [ ] LINE tunnel 啟動方式文件化並提供啟動指令
 - [ ] `start/stop` 真正控制 worker
 - [ ] `force` 路由 live worker
 - [ ] `reauth` 只重登指定 account
 - [ ] `qr all` 路由 supervisor
 - [ ] authorization 規則保持
 - [ ] status 顯示真實 worker state
+- [ ] `force <profile>` 只觸發指定 worker
+- [ ] `force all` 觸發所有 running workers 並回傳 group result
+- [ ] `reauth <profile>` 只清該 profile cookie/session
+- [ ] `status <profile>` 顯示單帳號狀態
+- [ ] `status all` 顯示群組摘要
+- [ ] partial failure 回覆包含 profile
+- [ ] bot command 不呼叫 `switch_profile`
+- [ ] adapter binding 使用 profile name，不使用 user 猜測 profile
 
-### 5.4 Packaging
+測試：
+
+- [ ] regular user 只能控制授權 profile
+- [ ] admin 可控制 all profiles
+- [ ] force routes to correct worker
+- [ ] reauth does not touch other workers
+- [ ] qr all returns per-account results
+- [ ] bot responses redact secrets
+- [ ] Discord adapter E2E（fake supervisor + 完整指令流程）
+- [ ] LINE adapter E2E（fake supervisor + 完整指令流程）
+
+### 5.4 Client / local app
+
+- [ ] app shell 讀 supervisor snapshot
+- [ ] accounts panel 顯示 running/stopped/skipped
+- [ ] per-account detail panel 顯示 phase/login/last check/last error
+- [ ] group action preview 顯示會影響哪些 profiles
+- [ ] QR manual submit 可選 profile / all matching profiles
+- [ ] client mutation routes 轉交 supervisor，不直接操作 global context
+- [ ] client 不暴露 cookie、QR raw payload、password
+- [ ] local dashboard 對 stopped supervisor 有安全 fallback
+
+測試：
+
+- [ ] app API `/status` 或等效 route 回傳 accounts array
+- [ ] profile detail redacts secrets
+- [ ] QR preview 不 echo raw payload
+- [ ] QR submit routes through supervisor fake
+- [ ] stopped supervisor fallback view
+- [ ] unauthorized client request rejected
+
+### 5.5 Packaging
 
 - [ ] PyInstaller hidden imports
 - [ ] Windows console smoke
 - [ ] config reload smoke
 - [ ] shutdown smoke
 - [ ] 打包檔不含 state/config/log
+- [ ] worker shutdown 無 unclosed session warning
+- [ ] packaged app 可讀寫 per-account state layout
+- [ ] packaged app 不包含測試 fake server artifacts
 
-### 5.5 文件
+### 5.6 文件
 
 - [ ] README 修正現有「多帳號」描述
 - [ ] 寫 group 實際執行方式
@@ -545,6 +654,11 @@ Phase 4 驗收：
 - [ ] 寫 mixed-provider 限制
 - [ ] 寫 migration 注意事項
 - [ ] release notes
+- [ ] 文件明確區分「多 profile 管理」與「真正多帳號並行監控」
+- [ ] 文件列出目前支援的簽到類型：Number/Radar/Manual QR/Teacher QR
+- [ ] 文件列出 partial failure 範例
+- [ ] 文件列出 bot/client 指令範例
+- [ ] 文件列出舊 state/cookie migration 行為
 
 建議 commits：
 
@@ -552,6 +666,7 @@ Phase 4 驗收：
 feat: reconcile account workers after config reload
 feat: route bot controls to account supervisor
 feat: expose aggregate multi-account runtime status
+feat: connect local app to account supervisor
 docs: document real multi-account monitoring
 ```
 
@@ -580,4 +695,3 @@ Phase 5 驗收：
 - [ ] 完整 unittest suite 通過
 - [ ] release checklist 通過
 - [ ] README 不再把 planned fan-out 描述成已完成
-
