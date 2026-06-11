@@ -374,21 +374,21 @@ Phase 2 驗收：
 
 ### 3.1 Supervisor 基礎
 
-- [ ] 新增 `troTHU/account_supervisor.py`
-- [ ] worker task registry
-- [ ] start all desired specs
-- [ ] isolated stop
-- [ ] isolated failure/restart
-- [ ] exponential backoff
-- [ ] aggregate snapshot
-- [ ] graceful global shutdown
+- [x] 新增 `troTHU/account_supervisor.py`
+- [x] worker task registry
+- [x] start all desired specs
+- [x] isolated stop
+- [x] isolated failure/restart
+- [x] exponential backoff
+- [x] aggregate snapshot
+- [x] graceful global shutdown
 
 測試：
 
-- [ ] 啟動兩 worker
-- [ ] 一個 worker crash，另一個持續
-- [ ] restart backoff
-- [ ] shutdown 全部完成
+- [x] 啟動兩 worker
+- [x] 一個 worker crash，另一個持續
+- [x] restart backoff
+- [x] shutdown 全部完成
 
 建議 commit：
 
