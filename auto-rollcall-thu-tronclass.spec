@@ -71,6 +71,7 @@ HIDDEN_IMPORTS = sorted(
             "troTHU.logging_runtime",
             "troTHU.monitor_runtime",
             "troTHU.notification_delivery",
+            "troTHU.number_account",
             "troTHU.number_rollcall",
             "troTHU.number_runtime",
             "troTHU.notification_bus",

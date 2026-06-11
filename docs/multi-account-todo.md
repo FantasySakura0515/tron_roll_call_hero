@@ -269,21 +269,21 @@ refactor: scope polling and progress to account state
 
 ### 2.5 Number
 
-- [ ] 拆出 `NumberCodeResolver`
-- [ ] 拆出 `NumberSubmissionExecutor`
-- [ ] direct lookup 接受 account context
-- [ ] brute force 接受 account context
-- [ ] submit/verify 回傳 `SubmissionResult`
-- [ ] completed number 寫 account state
-- [ ] legacy `number(session, rcid)` wrapper
+- [x] 拆出 `NumberCodeResolver`（`troTHU/number_account.py`）
+- [x] 拆出 `NumberSubmissionExecutor`
+- [x] direct lookup 接受 account context
+- [x] brute force 接受 account context
+- [x] submit/verify 回傳 `SubmissionResult`
+- [x] completed number 寫 account state
+- [x] legacy `number(session, rcid)` wrapper（`number_runtime` 原路徑不動，即為 legacy 入口）
 
 測試：
 
-- [ ] direct code success
-- [ ] brute force fallback
-- [ ] unauthorized
-- [ ] submitted-unconfirmed
-- [ ] account A 完成不跳過 account B
+- [x] direct code success
+- [x] brute force fallback
+- [x] unauthorized
+- [x] submitted-unconfirmed
+- [x] account A 完成不跳過 account B
 
 建議 commit：
 
