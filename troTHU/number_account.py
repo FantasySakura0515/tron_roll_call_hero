@@ -125,6 +125,11 @@ async def answer_number_rollcall(
     for candidate in candidates:
         attempt = await executor.submit_code(account, rollcall_id, candidate)
         if attempt.status == NumberAttemptStatus.SUCCESS:
+            # A brute-force discovery is a shared artifact: publish it so other
+            # accounts answering the same rollcall submit once instead of guessing.
+            publish = getattr(resolver, "publish", None)
+            if callable(publish) and not lookup.has_code:
+                publish(account.provider_key, rid, "{:04d}".format(int(candidate)))
             if await executor.verify_confirmed(account, rollcall_id):
                 account.state.completed_number[rid] = "{:04d}".format(int(candidate))
                 return _result(SubmissionStatus.CONFIRMED)

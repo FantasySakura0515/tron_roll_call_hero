@@ -419,20 +419,20 @@ test: model multiple authenticated students in fake server
 
 ### 3.3 Number artifact coordinator
 
-- [ ] 新增 `troTHU/rollcall_artifact_coordinator.py`
-- [ ] key 為 provider + rollcall ID
-- [ ] direct code cache
-- [ ] brute-force single-flight
-- [ ] result TTL
-- [ ] error 不永久 cache
-- [ ] shutdown cancellation
+- [x] 新增 `troTHU/rollcall_artifact_coordinator.py`
+- [x] key 為 provider + rollcall ID
+- [x] direct code cache（`CoordinatedNumberCodeResolver` 可直接作為 `answer_number_rollcall` 的 resolver）
+- [x] brute-force single-flight（暴力猜碼成功後 publish，其他帳號單發提交）
+- [x] result TTL
+- [x] error 不永久 cache
+- [x] shutdown cancellation
 
 測試：
 
-- [ ] 兩 worker 同時請求只 resolve 一次
-- [ ] 每帳號 submit 一次
-- [ ] resolver failure 可重試
-- [ ] 不同 provider 不共享
+- [x] 兩 worker 同時請求只 resolve 一次
+- [x] 每帳號 submit 一次
+- [x] resolver failure 可重試
+- [x] 不同 provider 不共享
 
 建議 commit：
 
