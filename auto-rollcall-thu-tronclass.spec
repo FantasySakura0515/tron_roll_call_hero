@@ -67,6 +67,7 @@ HIDDEN_IMPORTS = sorted(
             "troTHU.global_radar_solver",
             "troTHU.local_scanner",
             "troTHU.line_adapter",
+            "troTHU.account_worker",
             "troTHU.input_safety",
             "troTHU.logging_runtime",
             "troTHU.monitor_runtime",

@@ -338,23 +338,23 @@ refactor: scope student QR execution to account context
 
 ### 2.8 AccountWorker 單帳號接線
 
-- [ ] 新增 `troTHU/account_worker.py`
-- [ ] worker 建立/關閉 session
-- [ ] worker login/retry state machine
-- [ ] worker schedule loop
-- [ ] worker poll/execute loop
-- [ ] worker runtime heartbeat
-- [ ] worker graceful stop
-- [ ] `app_main()` 單帳號改由 worker 執行
-- [ ] legacy console input/edit 行為保持
+- [x] 新增 `troTHU/account_worker.py`
+- [x] worker 建立/關閉 session
+- [x] worker login/retry state machine
+- [x] worker schedule loop
+- [x] worker poll/execute loop
+- [x] worker runtime heartbeat（phase 轉換時持久化 per-account snapshot）
+- [x] worker graceful stop
+- [ ] `app_main()` 單帳號改由 worker 執行（延後：legacy monitor_loop 內建 teacher assist／console status／attendance gate，需先有 2.3 延後的 log/event adapter 與 Phase 4 teacher coordinator 才能不回歸地切換；屆時 worker 雙寫 console + event）
+- [ ] legacy console input/edit 行為保持（同上，隨 app_main 接線一併驗證）
 
 測試：
 
-- [ ] worker lifecycle
-- [ ] retry backoff
-- [ ] shutdown closes session
-- [ ] 單帳號 fake server E2E
-- [ ] 現有 monitor tests 維持通過
+- [x] worker lifecycle
+- [x] retry backoff
+- [x] shutdown closes session
+- [x] 單帳號 fake server E2E（number 偵測→直讀→confirmed→後續輪詢 skip）
+- [x] 現有 monitor tests 維持通過（697 項全綠）
 
 建議 commit：
 
