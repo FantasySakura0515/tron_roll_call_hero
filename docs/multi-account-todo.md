@@ -537,23 +537,23 @@ Phase 4 驗收：
 
 ### 5.1 Config reload
 
-- [ ] watcher 讀新 config
-- [ ] registry 建新 desired specs
-- [ ] supervisor reconcile
-- [ ] add/remove/restart/keep report
-- [ ] 修改單一帳號只重啟該 worker
-- [ ] 無效 config 保留現有 worker
-- [ ] reload report 包含 added/removed/restarted/kept/skipped
-- [ ] reload 不清掉未受影響帳號 session/cookie
-- [ ] reload 失敗事件帶 profile/provider 或 group identity
+- [ ] watcher 讀新 config（檔案 watcher 留待 app_main 接線；reload API 已就緒）
+- [x] registry 建新 desired specs
+- [x] supervisor reconcile（`AccountSupervisor.reconcile`）
+- [x] add/remove/restart/keep report（`MonitorApplication.reload` → `ReloadReport`）
+- [x] 修改單一帳號只重啟該 worker（spec 變更或密碼變更 force-restart）
+- [x] 無效 config 保留現有 worker
+- [x] reload report 包含 added/removed/restarted/kept/skipped
+- [x] reload 不清掉未受影響帳號 session/cookie
+- [x] reload 失敗事件帶 profile/provider 或 group identity（`group:config` 事件）
 
 測試：
 
-- [ ] add account 只啟動新增 worker
-- [ ] remove account 只停止移除 worker
-- [ ] change credential/provider 只重啟該 worker
-- [ ] invalid config 保留既有 workers
-- [ ] group membership change reconciliation
+- [x] add account 只啟動新增 worker
+- [x] remove account 只停止移除 worker
+- [x] change credential/provider 只重啟該 worker
+- [x] invalid config 保留既有 workers
+- [x] group membership change reconciliation（add/remove 即群組成員變更）
 
 ### 5.2 Status 與 console
 

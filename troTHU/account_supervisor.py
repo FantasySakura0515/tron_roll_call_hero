@@ -128,6 +128,46 @@ class AccountSupervisor:
             await self.stop_account(profile)
         self._started = False
 
+    async def reconcile(
+        self,
+        new_specs: Sequence[AccountSpec],
+        *,
+        force_restart: Optional[set] = None,
+    ) -> Dict[str, Tuple[str, ...]]:
+        """Apply a new desired spec set, touching only the accounts that changed.
+
+        Kept workers (identical spec, not force-restarted) are left running with
+        their sessions intact.
+        """
+        force_restart = force_restart or set()
+        current = {spec.profile: spec for spec in self._specs}
+        desired = {spec.profile: spec for spec in new_specs}
+
+        added = tuple(profile for profile in desired if profile not in current)
+        removed = tuple(profile for profile in current if profile not in desired)
+        restarted = tuple(
+            profile
+            for profile in desired
+            if profile in current and (desired[profile] != current[profile] or profile in force_restart)
+        )
+        kept = tuple(
+            profile
+            for profile in desired
+            if profile in current and desired[profile] == current[profile] and profile not in force_restart
+        )
+
+        self._specs = tuple(new_specs)
+        for profile in removed:
+            await self.stop_account(profile)
+            self._supervised.pop(profile, None)
+        for profile in restarted:
+            await self.stop_account(profile)
+            self._supervised.pop(profile, None)
+            await self.start_account(profile)
+        for profile in added:
+            await self.start_account(profile)
+        return {"added": added, "removed": removed, "restarted": restarted, "kept": kept}
+
     # ------------------------------------------------------------------
     # Supervision loop
     # ------------------------------------------------------------------

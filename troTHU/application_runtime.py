@@ -26,6 +26,7 @@ from troTHU.rollcall_artifact_coordinator import (
     CoordinatedNumberCodeResolver,
     RollcallArtifactCoordinator,
 )
+from troTHU.runtime_events import group_event
 from troTHU.runtime_services import NullEventSink, CredentialResolver, RuntimeServices, SystemClock
 
 
@@ -50,6 +51,30 @@ class StartupReport:
             "started": list(self.started),
             "skipped": [dict(item) for item in self.skipped],
             "warnings": list(self.warnings),
+        }
+
+
+@dataclass(frozen=True)
+class ReloadReport:
+    """What a config reload changed, per account."""
+
+    ok: bool
+    reason: str = ""
+    added: Tuple[str, ...] = ()
+    removed: Tuple[str, ...] = ()
+    restarted: Tuple[str, ...] = ()
+    kept: Tuple[str, ...] = ()
+    skipped: Tuple[Dict[str, Any], ...] = ()
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "ok": self.ok,
+            "reason": self.reason,
+            "added": list(self.added),
+            "removed": list(self.removed),
+            "restarted": list(self.restarted),
+            "kept": list(self.kept),
+            "skipped": [dict(item) for item in self.skipped],
         }
 
 
@@ -137,6 +162,69 @@ class MonitorApplication:
         if self._supervisor is not None:
             await self._supervisor.stop()
         await self._coordinator.shutdown()
+
+    async def reload(self, new_config: Mapping[str, Any], now: Optional[str] = None) -> ReloadReport:
+        """Reconcile running workers against a new config.
+
+        An invalid config keeps every existing worker running. Only accounts
+        whose spec or resolved credential changed are restarted; everyone else
+        keeps their session and cookies.
+        """
+        kept_running = tuple(self._supervisor.running_profiles()) if self._supervisor else ()
+
+        def _fail(reason: str) -> ReloadReport:
+            self._services.events.emit(
+                group_event("config", "config_reload", status=reason)
+            )
+            return ReloadReport(ok=False, reason=reason, kept=kept_running)
+
+        if not isinstance(new_config, Mapping) or not new_config:
+            return _fail("invalid_config")
+        new_registry = AccountRegistry(new_config)
+        resolution = new_registry.resolve_target(now)
+        specs = new_registry.desired_specs(now)
+        if not resolution.ok or not specs:
+            return _fail("invalid_target")
+        if self._supervisor is None:
+            return _fail("not_started")
+
+        old_credentials = self._services.credentials
+        new_credentials = CredentialResolver(new_config)
+
+        # A password change does not show up in the spec; compare resolved
+        # credentials transiently and force-restart those accounts.
+        force_restart = set()
+        current_specs = {spec.profile: spec for spec in self._registry.desired_specs(now)}
+        for spec in specs:
+            old_spec = current_specs.get(spec.profile)
+            if old_spec is None or old_spec != spec:
+                continue
+            try:
+                if old_credentials.resolve(old_spec).password != new_credentials.resolve(spec).password:
+                    force_restart.add(spec.profile)
+            except Exception:
+                force_restart.add(spec.profile)
+
+        self._config = new_config
+        self._registry = new_registry
+        self._resolution = resolution
+        self._services = RuntimeServices(
+            credentials=new_credentials,
+            cookies=self._services.cookies,
+            states=self._services.states,
+            events=self._services.events,
+            clock=self._services.clock,
+        )
+
+        changes = await self._supervisor.reconcile(specs, force_restart=force_restart)
+        return ReloadReport(
+            ok=True,
+            added=changes["added"],
+            removed=changes["removed"],
+            restarted=changes["restarted"],
+            kept=changes["kept"],
+            skipped=tuple(item.to_dict() for item in resolution.skipped),
+        )
 
     # ------------------------------------------------------------------
     # Introspection
