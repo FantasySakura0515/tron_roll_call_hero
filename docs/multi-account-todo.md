@@ -316,19 +316,19 @@ refactor: scope radar execution to account context
 
 ### 2.7 QR student path
 
-- [ ] manual payload submit 接受 account context
-- [ ] `finalize_qr_submission` 寫 account state
-- [ ] pending QR 以 profile/provider 記錄
-- [ ] clipboard 路徑只作用於指定 account
-- [ ] completed QR 寫 account state
-- [ ] teacher assist 暫時維持 single-account adapter
+- [x] manual payload submit 接受 account context（`troTHU/qr_account.py`）
+- [x] `finalize_qr_submission` 寫 account state（account 路徑由 `submit_qr_payload_account` 內 verify + completed 寫入取代）
+- [x] pending QR 以 profile/provider 記錄（`pending_qr` 既有 key；account 路徑只清自己的 profile/provider）
+- [x] clipboard 路徑只作用於指定 account（clipboard 解碼為純 I/O；提交一律走指定 account 的 `submit_qr_payload_account`，worker 接線於 2.8）
+- [x] completed QR 寫 account state
+- [x] teacher assist 暫時維持 single-account adapter
 
 測試：
 
-- [ ] manual payload account A/B 各自提交
-- [ ] pending registry account isolation
-- [ ] completed QR isolation
-- [ ] raw payload 不進 snapshot/log
+- [x] manual payload account A/B 各自提交
+- [x] pending registry account isolation
+- [x] completed QR isolation
+- [x] raw payload 不進 snapshot/log（snapshot/event/result JSON 皆驗證）
 
 建議 commit：
 
