@@ -85,21 +85,22 @@ def build_group_execution_plan(config: ctx.Mapping[str, ctx.Any], target: ctx.Ma
     return {"ok": bool(monitor_user), "target": target, "monitor_user": monitor_user, "fanout_users": fanout, "accounts": [{"user": user, "school": school} for user in fanout], "skipped": skipped, "warnings": warnings}
 
 
+# The legacy "planned" fan-out helpers never submitted anything; real group
+# execution now runs through troTHU.application_runtime / AccountSupervisor.
+# They stay only so old callers keep working, and must never report success.
+_DEPRECATED_MESSAGE = "群組 fan-out 已改由 account supervisor 真實執行；planned 計畫已棄用。"
+
+
 async def submit_group_qr(payload: str, *, session: ctx.Any = None, config: ctx.Mapping[str, ctx.Any] | None = None) -> ctx.Dict[str, ctx.Any]:
     plan = build_group_execution_plan(config or ctx.CONFIG)
-    if not plan.get("ok"):
-        return {"ok": False, "status": "no_group_target", "plan": plan}
-    results = []
-    for user in plan.get("fanout_users", []):
-        results.append({"user": user, "ok": True, "status": "planned"})
-    return {"ok": True, "status": "planned", "count": len(results), "results": results, "payload_hash": ctx.hashlib.sha256(ctx.normalize_text(payload).encode("utf-8")).hexdigest()[:12]}
+    return {"ok": False, "kind": "qr", "status": "deprecated", "message": _DEPRECATED_MESSAGE, "plan": plan, "payload_hash": ctx.hashlib.sha256(ctx.normalize_text(payload).encode("utf-8")).hexdigest()[:12]}
 
 
 async def submit_group_number(code: str, *, session: ctx.Any = None, config: ctx.Mapping[str, ctx.Any] | None = None) -> ctx.Dict[str, ctx.Any]:
     plan = build_group_execution_plan(config or ctx.CONFIG)
-    return {"ok": bool(plan.get("ok")), "kind": "number", "status": "planned" if plan.get("ok") else "no_group_target", "code_length": len(ctx.normalize_text(code)), "plan": plan}
+    return {"ok": False, "kind": "number", "status": "deprecated", "message": _DEPRECATED_MESSAGE, "code_length": len(ctx.normalize_text(code)), "plan": plan}
 
 
 async def submit_group_radar(point: ctx.Any, *, session: ctx.Any = None, config: ctx.Mapping[str, ctx.Any] | None = None) -> ctx.Dict[str, ctx.Any]:
     plan = build_group_execution_plan(config or ctx.CONFIG)
-    return {"ok": bool(plan.get("ok")), "kind": "radar", "status": "planned" if plan.get("ok") else "no_group_target", "plan": plan}
+    return {"ok": False, "kind": "radar", "status": "deprecated", "message": _DEPRECATED_MESSAGE, "plan": plan}

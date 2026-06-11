@@ -34,15 +34,25 @@ class GroupRuntimeTest(unittest.TestCase):
         self.assertNotIn("P1", encoded)
         self.assertNotIn("P2", encoded)
 
-    def test_group_submit_helpers_are_safe_plans(self) -> None:
+    def test_group_submit_helpers_are_deprecated_and_never_claim_success(self) -> None:
         config = make_config()
         result = tron.asyncio.run(tron.submit_group_number("1234", config=config))
         encoded = json.dumps(result, ensure_ascii=False)
 
-        self.assertEqual(result["status"], "planned")
+        # Real fan-out now runs through the account supervisor; the legacy
+        # planned helpers must not report ok/planned success any more.
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["status"], "deprecated")
         self.assertEqual(result["kind"], "number")
         self.assertNotIn("P1", encoded)
         self.assertNotIn("1234", encoded)
+
+        qr_result = tron.asyncio.run(tron.submit_group_qr("payload", config=config))
+        self.assertFalse(qr_result["ok"])
+        self.assertEqual(qr_result["status"], "deprecated")
+        radar_result = tron.asyncio.run(tron.submit_group_radar({}, config=config))
+        self.assertFalse(radar_result["ok"])
+        self.assertEqual(radar_result["status"], "deprecated")
 
     def test_resolve_blank_now_infers_single_account(self) -> None:
         simple = {

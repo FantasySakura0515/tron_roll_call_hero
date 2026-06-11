@@ -442,23 +442,23 @@ feat: coordinate shared number code discovery
 
 ### 3.4 開啟 group monitor
 
-- [ ] `application_runtime.py` 組裝 supervisor
-- [ ] `now:class A` 啟動全部 worker
-- [ ] mixed-provider group
-- [ ] per-account startup report
-- [ ] partial login failure report
-- [ ] group Number 真實提交
-- [ ] group Radar 真實提交
-- [ ] 移除/棄用 `planned` fan-out 成功訊息
+- [x] `application_runtime.py` 組裝 supervisor（`MonitorApplication`）
+- [x] `now:class A` 啟動全部 worker
+- [x] mixed-provider group（registry/factory 依各 spec provider 推導 endpoints；E2E 受限於單一 fake host，mixed 解析由 registry 測試覆蓋）
+- [x] per-account startup report（`StartupReport`：started/skipped/warnings）
+- [x] partial login failure report（status_report 顯示 per-account login_status/phase/healthy）
+- [x] group Number 真實提交
+- [x] group Radar 真實提交
+- [x] 移除/棄用 `planned` fan-out 成功訊息（`submit_group_*` 改回傳 `ok: False, status: "deprecated"`，rollcall_runtime 的 ok 守門使訊息不再出現）
 
 E2E：
 
-- [ ] 兩帳號同時監測 Number
-- [ ] 兩帳號各自 confirmed
-- [ ] 兩帳號同時監測 Radar
-- [ ] 兩帳號各自 confirmed
-- [ ] 一帳號 login fail，另一帳號成功
-- [ ] 一帳號 session expired，只重登該帳號
+- [x] 兩帳號同時監測 Number
+- [x] 兩帳號各自 confirmed
+- [x] 兩帳號同時監測 Radar
+- [x] 兩帳號各自 confirmed
+- [x] 一帳號 login fail，另一帳號成功
+- [x] 一帳號 session expired，只重登該帳號
 
 建議 commit：
 
@@ -468,10 +468,10 @@ feat: monitor and answer number and radar for account groups
 
 Phase 3 驗收：
 
-- [ ] 真正多帳號 Number/Radar 可運作
-- [ ] 每帳號 session/state/cookie 隔離
-- [ ] partial failure 不停止全組
-- [ ] 完整測試通過
+- [x] 真正多帳號 Number/Radar 可運作（E2E：兩帳號各自 confirmed）
+- [x] 每帳號 session/state/cookie 隔離（per-account session jar / runtime state / cookie repository）
+- [x] partial failure 不停止全組
+- [x] 完整測試通過（723 項）
 
 ## Phase 4：QR Coordinator
 

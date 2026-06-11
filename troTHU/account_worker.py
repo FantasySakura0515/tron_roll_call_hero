@@ -51,6 +51,7 @@ from troTHU.tron_http import TronHttpError, UnauthorizedError
 DEFAULT_LOGIN_BACKOFF: tuple = (1.0, 2.0, 5.0, 10.0, 30.0, 60.0)
 RETRIABLE_LOGIN_STATUSES = {"transient_error", "missing_session", "login_page_changed"}
 UNHEALTHY_PHASES = {"login_failed", "crashed"}
+FAILED_LOGIN_STATUSES = {"rejected"}
 
 
 def _default_session_factory() -> Any:
@@ -84,6 +85,7 @@ class AccountWorker:
         session_factory: Optional[Callable[[], Any]] = None,
         sleep: Optional[Callable[[float], Awaitable[None]]] = None,
         now_provider: Optional[Callable[[], datetime]] = None,
+        number_resolver: Any = None,
     ) -> None:
         self.spec = spec
         self._factory = AccountContextFactory(config, services=services)
@@ -96,6 +98,7 @@ class AccountWorker:
         self._session_factory = session_factory or _default_session_factory
         self._custom_sleep = sleep
         self._now_provider = now_provider
+        self._number_resolver = number_resolver
 
         self._state = AccountRuntimeState()
         self._phase = "created"
@@ -135,7 +138,10 @@ class AccountWorker:
             poll_count=self._state.poll_count,
             last_check_status=self._last_check_status,
             last_error_code=str(last_error.get("code") or ""),
-            healthy=self._phase not in UNHEALTHY_PHASES,
+            healthy=(
+                self._phase not in UNHEALTHY_PHASES
+                and self._state.login.status not in FAILED_LOGIN_STATUSES
+            ),
         )
 
     # ------------------------------------------------------------------
@@ -237,7 +243,9 @@ class AccountWorker:
         result: Optional[SubmissionResult] = None
         try:
             if status == "is_number":
-                result = await answer_number_rollcall(context, _rollcall_id(rollcall))
+                result = await answer_number_rollcall(
+                    context, _rollcall_id(rollcall), resolver=self._number_resolver
+                )
             elif status == "is_radar":
                 result = await answer_radar_rollcall(context, rollcall if isinstance(rollcall, Mapping) else {})
         except UnauthorizedError:
