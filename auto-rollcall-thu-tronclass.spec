@@ -82,6 +82,7 @@ HIDDEN_IMPORTS = sorted(
             "troTHU.qr_rollcall",
             "troTHU.qr_runtime",
             "troTHU.qr_teacher_runtime",
+            "troTHU.radar_account",
             "troTHU.radar_rollcall",
             "troTHU.radar_map_assist",
             "troTHU.radar_solver",

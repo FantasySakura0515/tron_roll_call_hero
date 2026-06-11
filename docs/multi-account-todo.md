@@ -293,20 +293,20 @@ refactor: split number resolution from account submission
 
 ### 2.6 Radar
 
-- [ ] `radar(account, rollcall)`
-- [ ] empty answer 使用 account endpoints/session
-- [ ] global solver 使用 account config
-- [ ] fallback 使用 account state
-- [ ] submit/verify 回傳 `SubmissionResult`
-- [ ] completed radar 寫 account state
-- [ ] legacy wrapper
+- [x] `answer_radar_rollcall(account, rollcall)`（`troTHU/radar_account.py`）
+- [x] empty answer 使用 account endpoints/session
+- [x] global solver 使用 account config
+- [x] fallback 使用 account state
+- [x] submit/verify 回傳 `SubmissionResult`
+- [x] completed radar 寫 account state
+- [x] legacy wrapper（`radar_runtime` 原路徑不動，即為 legacy 入口）
 
 測試：
 
-- [ ] empty answer success
-- [ ] global solver fallback
-- [ ] account-scoped provider endpoints
-- [ ] account A 完成不跳過 account B
+- [x] empty answer success
+- [x] global solver fallback
+- [x] account-scoped provider endpoints（context endpoints 驅動全部請求；AST 測試確認不讀 active globals）
+- [x] account A 完成不跳過 account B
 
 建議 commit：
 
