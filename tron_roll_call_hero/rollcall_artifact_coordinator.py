@@ -119,10 +119,10 @@ class CoordinatedNumberCodeResolver:
         self._inner = inner or NumberCodeResolver()
         self.direct_read_count = 0
 
-    async def resolve_direct(self, account: Any, rollcall_id: Any) -> NumberCodeLookup:
+    async def resolve_direct(self, account: Any, rollcall_id: Any, course_id: Any = "") -> NumberCodeLookup:
         async def _resolve() -> Optional[str]:
             self.direct_read_count += 1
-            lookup = await self._inner.resolve_direct(account, rollcall_id)
+            lookup = await self._inner.resolve_direct(account, rollcall_id, course_id)
             return lookup.code if lookup.has_code else None
 
         code = await self._coordinator.get_or_resolve(account.provider_key, rollcall_id, _resolve)

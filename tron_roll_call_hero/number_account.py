@@ -55,14 +55,16 @@ class NumberCodeResolver:
     caller can fall back to brute force without raising.
     """
 
-    async def resolve_direct(self, account: AccountContext, rollcall_id: Any) -> NumberCodeLookup:
+    async def resolve_direct(
+        self, account: AccountContext, rollcall_id: Any, course_id: Any = ""
+    ) -> NumberCodeLookup:
         client = TronHttpClient(
             account.session,
             request_ssl=_request_ssl(account),
             endpoints=account.endpoints,
         )
         try:
-            payload = await client.fetch_student_rollcalls(rollcall_id)
+            payload = await client.fetch_student_rollcalls(rollcall_id, course_id=course_id)
         except (TronHttpError, *_NETWORK_ERRORS):
             return NumberCodeLookup()
         return parse_number_code_payload(payload)
@@ -96,6 +98,7 @@ async def answer_number_rollcall(
     account: AccountContext,
     rollcall_id: Any,
     *,
+    course_id: Any = "",
     resolver: Optional[NumberCodeResolver] = None,
     executor: Optional[NumberSubmissionExecutor] = None,
     code_limit: int = NUMBER_CODE_LIMIT,
@@ -119,7 +122,7 @@ async def answer_number_rollcall(
     resolver = resolver or NumberCodeResolver()
     executor = executor or NumberSubmissionExecutor()
 
-    lookup = await resolver.resolve_direct(account, rollcall_id)
+    lookup = await resolver.resolve_direct(account, rollcall_id, course_id)
     candidates: Iterable[int] = [int(lookup.code)] if lookup.has_code else range(code_limit)
 
     for candidate in candidates:

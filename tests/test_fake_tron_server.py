@@ -242,6 +242,21 @@ class FakeCaptchaLoginTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ok.reason, "success")
             self.assertTrue(ok.has_session)
 
+    async def test_student_rollcalls_referer_sent_when_course_id_known(self) -> None:
+        # Some TronClass tenants require a Referer on student_rollcalls or they
+        # withhold number_code. Send it when the course id is known.
+        import aiohttp as _aiohttp
+
+        fake = await FakeTronServer().start()
+        try:
+            async with _aiohttp.ClientSession(cookie_jar=_aiohttp.CookieJar(unsafe=True)) as session:
+                await fake.login_session(session)
+                await fake.client(session).fetch_student_rollcalls(42, course_id="C9")
+        finally:
+            await fake.close()
+        self.assertTrue(fake.student_rollcalls_referers)
+        self.assertIn("/course/C9/rollcall", fake.student_rollcalls_referers[-1])
+
     async def test_wrong_password_page_with_captcha_label_is_rejected_not_captcha(self) -> None:
         # Regression: the real FJU CAS page renders the "驗證碼:" captcha label on
         # every response, including a wrong-password re-render. Classification must

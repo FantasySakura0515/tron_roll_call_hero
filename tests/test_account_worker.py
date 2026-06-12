@@ -202,6 +202,17 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         await self.wait_for(lambda: "42" in worker.state.completed_number)
         await worker.stop()
 
+    async def test_number_read_sends_course_referer(self) -> None:
+        self.fake.rollcalls = [{"is_number": True, "rollcall_id": 42, "course_id": "C9"}]
+        worker = self.make_worker()
+        await worker.start()
+        await self.wait_for(lambda: "42" in worker.state.completed_number)
+        await worker.stop()
+        self.assertTrue(self.fake.student_rollcalls_referers)
+        self.assertTrue(
+            any("/course/C9/rollcall" in ref for ref in self.fake.student_rollcalls_referers)
+        )
+
     async def test_reauth_clears_saved_cookie_cache(self) -> None:
         self.fake.rollcalls = []
         worker = self.make_worker()

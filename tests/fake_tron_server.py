@@ -47,6 +47,7 @@ class FakeTronServer:
         self.session_expired = False
         self.scripts: Dict[str, List[Dict[str, Any]]] = {}
         self.number_attempts: List[Dict[str, Any]] = []
+        self.student_rollcalls_referers: List[str] = []
         self.radar_answers: List[Dict[str, Any]] = []
         self.qr_answers: List[Dict[str, Any]] = []
         self.teacher_qr_code_requests: List[Dict[str, Any]] = []
@@ -484,6 +485,7 @@ class FakeTronServer:
         unauthorized = self._unauthorized_if_needed(request)
         if unauthorized is not None:
             return unauthorized
+        self.student_rollcalls_referers.append(request.headers.get("Referer") or "")
         scripted = self._script_response("student_rollcalls")
         if scripted is not None:
             return scripted

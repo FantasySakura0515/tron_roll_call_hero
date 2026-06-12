@@ -77,6 +77,16 @@ def _rollcall_id(rollcall: Any) -> str:
     return ""
 
 
+def _course_id(rollcall: Any) -> str:
+    if not isinstance(rollcall, Mapping):
+        return ""
+    for key in ("course_id", "courseId", "course"):
+        value = rollcall.get(key)
+        if value not in (None, ""):
+            return str(value)
+    return ""
+
+
 class AccountWorker:
     """Runs the monitor loop for exactly one account."""
 
@@ -266,7 +276,7 @@ class AccountWorker:
         try:
             if status == "is_number":
                 result = await answer_number_rollcall(
-                    context, rid, resolver=self._number_resolver
+                    context, rid, course_id=_course_id(rollcall), resolver=self._number_resolver
                 )
             elif status == "is_radar":
                 result = await answer_radar_rollcall(context, rollcall if isinstance(rollcall, Mapping) else {})

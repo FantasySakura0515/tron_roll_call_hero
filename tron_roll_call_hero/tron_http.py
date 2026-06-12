@@ -728,13 +728,19 @@ class TronHttpClient:
 
         return RollcallsResult(url=url, status_code=status_code, payload=payload)
 
-    async def fetch_student_rollcalls(self, rollcall_id: Any, action: str = "") -> Any:
+    async def fetch_student_rollcalls(self, rollcall_id: Any, action: str = "", course_id: Any = "") -> Any:
         base = self.endpoints.base_url.rstrip("/")
         url = "{}/api/rollcall/{}/student_rollcalls".format(base, str(rollcall_id).strip())
         action_text = str(action or "").strip()
         if action_text:
             url = "{}?action={}".format(url, action_text)
-        async with self.session.get(url, **self.request_kwargs()) as resp:
+        # Some TronClass tenants only leak number_code when the request carries
+        # the same Referer the browser sends from the rollcall page.
+        get_kwargs: Dict[str, Any] = dict(self.request_kwargs())
+        course_text = str(course_id or "").strip()
+        if course_text:
+            get_kwargs["headers"] = {"Referer": "{}/course/{}/rollcall".format(base, course_text)}
+        async with self.session.get(url, **get_kwargs) as resp:
             response_url = str(resp.url)
             status_code = resp.status
             if status_code == 401 or "login" in response_url.lower():
