@@ -588,7 +588,7 @@ Phase 4 驗收：
 - [x] Discord gateway adapter 接 live supervisor（`tron bot discord-gateway --supervisor`；gateway 與 interactions webhook 共用同一 BotRuntime）
 - [x] LINE webhook adapter 接 live supervisor（`tron bot serve --supervisor` 啟動 in-process monitor + webhook server）
 - [x] 兩平台指令集一致（同一 `adapter_bridge` command mapping + `BotRuntime` 分派，bridge 與平台無關）
-- [ ] LINE tunnel 啟動方式文件化並提供啟動指令
+- [x] LINE tunnel 啟動方式文件化並提供啟動指令（[bot-setup.md](bot-setup.md)：Cloudflare Tunnel / ngrok + webhook 設定）
 - [x] `start/stop` 真正控制 worker（`troTHU/bot_supervisor_bridge.py`；BotRuntime 新增 start/stop handler hooks）
 - [x] `force` 路由 live worker（`AccountWorker.force_check()`）
 - [x] `reauth` 只重登指定 account（`AccountWorker.request_reauth()` 只清自己 cookie jar）
