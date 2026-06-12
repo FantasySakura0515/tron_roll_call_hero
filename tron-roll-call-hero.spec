@@ -45,6 +45,7 @@ HIDDEN_IMPORTS = sorted(
             "tron_roll_call_hero.bot_runtime",
             "tron_roll_call_hero.bot_status",
             "tron_roll_call_hero.bot_supervisor_bridge",
+            "tron_roll_call_hero.captcha_solver",
             "tron_roll_call_hero.cli_accounts",
             "tron_roll_call_hero.cli_app",
             "tron_roll_call_hero.cli_bot",
