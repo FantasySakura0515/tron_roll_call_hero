@@ -20,7 +20,174 @@ except Exception:  # pragma: no cover
 
 from tron_roll_call_hero.qr_fanout import submit_group_qr_payload
 
-DASHBOARD_HTML = "<!doctype html><title>placeholder</title>"
+DASHBOARD_HTML = """<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tron-roll-call-hero dashboard</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+         background: #111418; color: #e6e6e6; margin: 0; padding: 1.5rem; }
+  h1 { font-size: 1.1rem; margin: 0 0 1rem; }
+  h2 { font-size: .95rem; margin: 1.5rem 0 .5rem; color: #9ad; }
+  .cards { display: flex; flex-wrap: wrap; gap: .8rem; }
+  .card { border: 1px solid #2a3038; border-radius: 8px; padding: .8rem 1rem;
+          min-width: 220px; background: #171b21; }
+  .card .profile { font-weight: 700; }
+  .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%;
+         margin-right: .4rem; vertical-align: baseline; }
+  .dot.green { background: #4caf50; } .dot.yellow { background: #d8b021; }
+  .dot.red { background: #e05252; }
+  .meta { font-size: .8rem; color: #9aa3ad; margin-top: .3rem; }
+  button { background: #243042; color: #dce6f0; border: 1px solid #33415a;
+           border-radius: 5px; padding: .25rem .6rem; cursor: pointer; margin-right: .4rem;
+           font: inherit; font-size: .8rem; }
+  button:hover { background: #2e3d55; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+  th, td { border-bottom: 1px solid #2a3038; padding: .35rem .5rem; text-align: left; }
+  th { color: #9aa3ad; font-weight: 600; }
+  textarea { width: 100%; min-height: 4rem; background: #171b21; color: #e6e6e6;
+             border: 1px solid #2a3038; border-radius: 6px; padding: .5rem; font: inherit; }
+  select { background: #171b21; color: #e6e6e6; border: 1px solid #2a3038;
+           border-radius: 5px; padding: .25rem; font: inherit; }
+  #qr-results, #action-result { font-size: .85rem; color: #9ad; white-space: pre-line;
+                                margin-top: .5rem; }
+</style>
+</head>
+<body>
+<h1>tron-roll-call-hero — 多帳號監控儀表板</h1>
+
+<h2>帳號</h2>
+<div class="cards" id="cards"></div>
+<div id="action-result"></div>
+
+<h2>QR 提交</h2>
+<textarea id="qr-payload" placeholder="貼上 QR payload"></textarea>
+<div style="margin-top:.5rem">
+  目標 <select id="qr-target"><option value="">全部</option></select>
+  <button id="qr-send">送出</button>
+</div>
+<div id="qr-results"></div>
+
+<h2>今日點名事件</h2>
+<table>
+  <thead><tr><th>時間</th><th>事件</th><th>rollcall</th><th>帳號</th><th>狀態</th></tr></thead>
+  <tbody id="events"></tbody>
+</table>
+
+<h2>近 7 天統計</h2>
+<table>
+  <thead><tr><th>帳號</th><th>confirmed</th><th>submitted</th><th>failed</th><th>skipped</th><th>最後成功</th></tr></thead>
+  <tbody id="stats"></tbody>
+</table>
+
+<script>
+(function () {
+  var token = new URLSearchParams(location.search).get("token") || "";
+  function api(path, options) {
+    options = options || {};
+    options.headers = Object.assign({"X-Dashboard-Token": token}, options.headers || {});
+    return fetch(path, options).then(function (res) { return res.json(); });
+  }
+  function phaseColor(phase, healthy) {
+    if (!healthy || phase === "login_failed" || phase === "crashed") return "red";
+    if (phase === "monitoring") return "green";
+    return "yellow";
+  }
+  function esc(value) {
+    var div = document.createElement("div");
+    div.textContent = String(value == null ? "" : value);
+    return div.innerHTML;
+  }
+  function act(path, profile) {
+    api(path, {method: "POST",
+               headers: {"Content-Type": "application/json"},
+               body: JSON.stringify({profile: profile})})
+      .then(function (body) {
+        document.getElementById("action-result").textContent = JSON.stringify(body);
+        refresh();
+      });
+  }
+  function renderCards(report) {
+    var cards = document.getElementById("cards");
+    var target = document.getElementById("qr-target");
+    var selected = target.value;
+    cards.innerHTML = "";
+    target.innerHTML = '<option value="">全部</option>';
+    (report.accounts || []).forEach(function (acc) {
+      var card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        '<div class="profile"><span class="dot ' + phaseColor(acc.phase, acc.healthy) + '"></span>' +
+        esc(acc.profile) + "</div>" +
+        '<div class="meta">phase: ' + esc(acc.phase) + " / login: " + esc(acc.login_status) + "</div>" +
+        '<div class="meta">polls: ' + esc(acc.poll_count) + " / err: " + esc(acc.last_error_code || "-") + "</div>" +
+        '<div style="margin-top:.5rem"></div>';
+      var row = card.lastChild;
+      var force = document.createElement("button");
+      force.textContent = "Force";
+      force.onclick = function () { act("/dashboard/api/force", acc.profile); };
+      var reauth = document.createElement("button");
+      reauth.textContent = "Reauth";
+      reauth.onclick = function () { act("/dashboard/api/reauth", acc.profile); };
+      row.appendChild(force);
+      row.appendChild(reauth);
+      cards.appendChild(card);
+      var option = document.createElement("option");
+      option.value = acc.profile;
+      option.textContent = acc.profile;
+      target.appendChild(option);
+    });
+    target.value = selected;
+  }
+  function renderEvents(body) {
+    var rows = (body.events || []).map(function (ev) {
+      var when = ev.ts ? new Date(ev.ts * 1000).toLocaleTimeString() : "-";
+      return "<tr><td>" + esc(when) + "</td><td>" + esc(ev.event) + "</td><td>" +
+        esc(ev.rollcall_id || "-") + "</td><td>" + esc(ev.profile) + "</td><td>" +
+        esc(ev.status) + "</td></tr>";
+    });
+    document.getElementById("events").innerHTML = rows.join("");
+  }
+  function renderStats(body) {
+    var accounts = body.accounts || {};
+    var rows = Object.keys(accounts).sort().map(function (profile) {
+      var entry = accounts[profile];
+      var last = entry.last_confirmed_ts
+        ? new Date(entry.last_confirmed_ts * 1000).toLocaleString() : "-";
+      return "<tr><td>" + esc(profile) + "</td><td>" + esc(entry.confirmed) + "</td><td>" +
+        esc(entry.submitted_unconfirmed) + "</td><td>" + esc(entry.failed) + "</td><td>" +
+        esc(entry.skipped) + "</td><td>" + esc(last) + "</td></tr>";
+    });
+    document.getElementById("stats").innerHTML = rows.join("");
+  }
+  function refresh() {
+    api("/dashboard/api/status").then(renderCards);
+    api("/dashboard/api/events?limit=50").then(renderEvents);
+    api("/dashboard/api/stats?days=7").then(renderStats);
+  }
+  document.getElementById("qr-send").onclick = function () {
+    var profile = document.getElementById("qr-target").value;
+    api("/dashboard/api/qr", {method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({payload: document.getElementById("qr-payload").value,
+                              profiles: profile ? [profile] : null})})
+      .then(function (body) {
+        var lines = (body.results || []).map(function (item) {
+          return item.profile + ": " + item.status + (item.error_code ? " (" + item.error_code + ")" : "");
+        });
+        document.getElementById("qr-results").textContent = lines.join("\\n") || JSON.stringify(body);
+      });
+  };
+  refresh();
+  setInterval(refresh, 3000);
+})();
+</script>
+</body>
+</html>
+"""
 
 
 def generate_dashboard_token() -> str:

@@ -225,6 +225,29 @@ class DashboardServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(profiles, ["user1", "user2"])
         self.assertNotIn(QR_SECRET, text)
 
+    async def test_dashboard_page_serves_html(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            response = await session.get(self.url("/dashboard"))
+            text = await response.text()
+        self.assertEqual(response.status, 200)
+        self.assertIn("text/html", response.headers["Content-Type"])
+        # 頁面會呼叫的 API 路徑都在
+        for path in (
+            "/dashboard/api/status",
+            "/dashboard/api/events",
+            "/dashboard/api/stats",
+            "/dashboard/api/force",
+            "/dashboard/api/reauth",
+            "/dashboard/api/qr",
+        ):
+            self.assertIn(path, text)
+
+    async def test_dashboard_page_does_not_embed_token(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            response = await session.get(self.url("/dashboard"))
+            text = await response.text()
+        self.assertNotIn(TOKEN, text)
+
     async def test_invalid_json_body_is_400(self) -> None:
         async with aiohttp.ClientSession() as session:
             response = await session.post(
