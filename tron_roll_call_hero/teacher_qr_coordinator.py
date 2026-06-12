@@ -56,6 +56,15 @@ def _rollcall_id(rollcall: Any) -> str:
     return str(rollcall or "").strip()
 
 
+def _course_id(rollcall: Any) -> str:
+    if isinstance(rollcall, Mapping):
+        for key in ("course_id", "courseId", "course"):
+            value = rollcall.get(key)
+            if value not in (None, ""):
+                return str(value)
+    return ""
+
+
 class TeacherQrCoordinator:
     """Coordinates teacher-assisted QR sign-ins for many student accounts."""
 
@@ -190,24 +199,42 @@ class TeacherQrCoordinator:
         if not await self._ensure_ready():
             return _result(SubmissionStatus.FAILED, error_code="teacher_not_ready")
 
-        try:
-            entry = await self._prepare(rid)
-        except UnauthorizedError:
-            self._login_ok = False
-            return _result(SubmissionStatus.FAILED, error_code="teacher_unauthorized")
-        except (TronHttpError, *_NETWORK_ERRORS):
-            return _result(SubmissionStatus.FAILED, error_code="prepare_failed")
-        except asyncio.CancelledError:
-            return _result(SubmissionStatus.FAILED, error_code="coordinator_shutdown")
-
         client = self._client()
+
+        # Prefer reading the REAL rollcall's QR data directly (qr_code BOLA): any
+        # teacher session can read it, so no parallel rollcall is created and the
+        # teacher need not own a course. Fall back to creating one only if the
+        # course id is unknown or the direct read is not permitted.
+        real_course_id = _course_id(rollcall)
+        qr_course_id = ""
+        qr_rollcall_id = ""
+        if real_course_id:
+            try:
+                await client.fetch_teacher_qr_code(real_course_id, rid)
+                qr_course_id, qr_rollcall_id = real_course_id, rid
+            except UnauthorizedError:
+                self._login_ok = False
+                return _result(SubmissionStatus.FAILED, error_code="teacher_unauthorized")
+            except (TronHttpError, *_NETWORK_ERRORS):
+                qr_course_id = ""  # direct read blocked -> create a parallel rollcall
+
+        if not qr_course_id:
+            try:
+                entry = await self._prepare(rid)
+            except UnauthorizedError:
+                self._login_ok = False
+                return _result(SubmissionStatus.FAILED, error_code="teacher_unauthorized")
+            except (TronHttpError, *_NETWORK_ERRORS):
+                return _result(SubmissionStatus.FAILED, error_code="prepare_failed")
+            except asyncio.CancelledError:
+                return _result(SubmissionStatus.FAILED, error_code="coordinator_shutdown")
+            qr_course_id, qr_rollcall_id = entry["course_id"], entry["teacher_rollcall_id"]
+
         deadline = time.monotonic() + self._confirm_window
         last: Optional[SubmissionResult] = None
         while time.monotonic() < deadline and not self._closed:
             try:
-                payload = await client.fetch_teacher_qr_code(
-                    entry["course_id"], entry["teacher_rollcall_id"]
-                )
+                payload = await client.fetch_teacher_qr_code(qr_course_id, qr_rollcall_id)
             except UnauthorizedError:
                 self._login_ok = False
                 return _result(SubmissionStatus.FAILED, error_code="teacher_unauthorized")

@@ -572,11 +572,27 @@ class FakeTronServer:
             return scripted
         course_id = request.match_info["course_id"]
         rollcall_id = request.match_info["rollcall_id"]
-        rollcall = self._teacher_rollcall(rollcall_id)
+        # Faithful to the qr_code BOLA: data is served for the teacher's own
+        # rollcall OR any active QR rollcall in the feed (no course-ownership check).
+        rollcall = self._teacher_rollcall(rollcall_id) or self._active_qr_rollcall(rollcall_id)
         if rollcall is None:
             return web.Response(status=404, text="not found")
         self.teacher_qr_code_requests.append({"course_id": course_id, "rollcall_id": rollcall_id})
         return web.json_response({"courseId": course_id, "data": self.teacher_qr_data, "rollcallId": rollcall_id})
+
+    def _active_qr_rollcall(self, rollcall_id: Any) -> Optional[Dict[str, Any]]:
+        rid = str(rollcall_id or "").strip()
+        for rollcall in self.rollcalls:
+            if not isinstance(rollcall, dict):
+                continue
+            same = any(
+                str(rollcall.get(key) or "").strip() == rid
+                for key in ("rollcall_id", "rollcallId", "id")
+            )
+            is_qr = any(rollcall.get(key) for key in ("is_qrcode", "is_qr_code", "is_qr"))
+            if same and is_qr:
+                return rollcall
+        return None
 
     async def stop_rollcall_api(self, request):
         unauthorized = self._unauthorized_if_needed(request)

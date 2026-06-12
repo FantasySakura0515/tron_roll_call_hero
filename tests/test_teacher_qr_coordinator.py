@@ -120,6 +120,27 @@ class TeacherQrCoordinatorTest(unittest.IsolatedAsyncioTestCase):
         await login_account(context)
         return context
 
+    async def test_direct_read_uses_real_rollcall_qr_code(self) -> None:
+        # When the active rollcall's course id is known, read the REAL rollcall's
+        # QR data directly (qr_code BOLA) instead of creating a parallel one.
+        self.fake.rollcalls = [{"is_qrcode": True, "rollcall_id": 55, "course_id": "C7"}]
+        context = await self.make_context("alpha", "user1")
+        rollcall = {"rollcall_id": 55, "type": "qr_rollcall", "course_id": "C7"}
+
+        result = await self.coordinator.assist(context, rollcall)
+
+        self.assertEqual(result.status, SubmissionStatus.CONFIRMED)
+        # No parallel teacher rollcall was created, and the real one was not stopped.
+        self.assertEqual(len(self.fake.teacher_rollcalls), 0)
+        self.assertEqual(len(self.fake.teacher_rollcall_stops), 0)
+        # The qr_code read targeted the real course id + rollcall id.
+        self.assertTrue(
+            any(
+                req["course_id"] == "C7" and req["rollcall_id"] == "55"
+                for req in self.fake.teacher_qr_code_requests
+            )
+        )
+
     async def test_two_students_share_one_teacher_rollcall(self) -> None:
         context_a = await self.make_context("alpha", "user1")
         context_b = await self.make_context("beta", "user2")
