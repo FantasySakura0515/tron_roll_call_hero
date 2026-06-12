@@ -73,6 +73,7 @@ HIDDEN_IMPORTS = sorted(
             "tron_roll_call_hero.line_adapter",
             "tron_roll_call_hero.account_supervisor",
             "tron_roll_call_hero.application_runtime",
+            "tron_roll_call_hero.attendance_gate",
             "tron_roll_call_hero.account_worker",
             "tron_roll_call_hero.input_safety",
             "tron_roll_call_hero.logging_runtime",
