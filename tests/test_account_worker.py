@@ -148,6 +148,25 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.fake.number_attempts), 1)
         await worker.stop()
 
+    async def test_number_submission_emits_runtime_event(self) -> None:
+        self.fake.rollcalls = [{"is_number": True, "rollcall_id": 42}]
+        worker = self.make_worker()
+        await worker.start()
+        await self.wait_for(lambda: "42" in worker.state.completed_number)
+        await worker.stop()
+        submissions = [
+            event
+            for event in self.sink.events
+            if getattr(event, "event", "") == "rollcall_submission"
+        ]
+        self.assertEqual(len(submissions), 1)
+        event = submissions[0]
+        self.assertEqual(event.profile, "alpha")
+        self.assertEqual(event.provider_key, "thu")
+        self.assertEqual(event.status, "confirmed")
+        self.assertEqual(event.rollcall_id, "42")
+        self.assertEqual(event.attendance_type, "number")
+
     async def test_standby_when_schedule_disabled(self) -> None:
         operating = {day: {"enable": False} for day in range(7)}
         worker = self.make_worker(operating=operating)

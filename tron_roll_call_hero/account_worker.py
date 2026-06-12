@@ -40,12 +40,14 @@ from tron_roll_call_hero.account_models import (
     AccountWorkerSnapshot,
     LoginState,
     SubmissionResult,
+    SubmissionStatus,
 )
 from tron_roll_call_hero.auth_account import login_account
 from tron_roll_call_hero.number_account import answer_number_rollcall
 from tron_roll_call_hero.qr_account import submit_qr_payload_account
 from tron_roll_call_hero.radar_account import answer_radar_rollcall
 from tron_roll_call_hero.rollcall_account import poll_rollcall_decision
+from tron_roll_call_hero.runtime_events import account_event
 from tron_roll_call_hero.runtime_helpers import is_within_any_schedule
 from tron_roll_call_hero.tron_http import TronHttpError, UnauthorizedError
 
@@ -254,6 +256,7 @@ class AccountWorker:
             return False
         if result is not None:
             self._last_result = result
+            self._emit_submission(context, result)
             if result.error_code == "unauthorized":
                 self._state.last_error = {"code": "unauthorized"}
                 return False
@@ -319,6 +322,26 @@ class AccountWorker:
                     provider_key=self.spec.provider_key,
                 )
             )
+
+    def _emit_submission(self, context: AccountContext, result: SubmissionResult) -> None:
+        # Completed rollcalls are skipped on every later poll; that repeat is
+        # loop noise, not a submission outcome worth an event.
+        if result.status == SubmissionStatus.SKIPPED_ALREADY_COMPLETE:
+            return
+        services = getattr(context, "services", None)
+        events = getattr(services, "events", None) if services is not None else None
+        if events is None:
+            return
+        events.emit(
+            account_event(
+                "rollcall_submission",
+                profile=result.profile,
+                provider_key=result.provider_key,
+                status=result.status.value,
+                rollcall_id=result.rollcall_id,
+                attendance_type=result.attendance_type.value,
+            )
+        )
 
     def _now(self) -> datetime:
         if self._now_provider is not None:
