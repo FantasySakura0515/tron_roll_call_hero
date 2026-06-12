@@ -2348,5 +2348,37 @@ class TronNumberRollcallTest(unittest.IsolatedAsyncioTestCase):
         banner.assert_not_called()
 
 
+class DetectCaptchaFieldTest(unittest.TestCase):
+    def test_detects_empty_captcha_field(self) -> None:
+        from tron_roll_call_hero.tron_http import LoginForm, detect_captcha_field
+
+        form = LoginForm(
+            action_url="https://x/submit",
+            fields={"execution": "e", "captcha": "", "username": "", "password": ""},
+        )
+        self.assertEqual(detect_captcha_field(form), "captcha")
+
+    def test_detects_validate_named_field(self) -> None:
+        from tron_roll_call_hero.tron_http import LoginForm, detect_captcha_field
+
+        form = LoginForm(
+            action_url="https://x/submit", fields={"validateCode": "", "execution": "e"}
+        )
+        self.assertEqual(detect_captcha_field(form), "validateCode")
+
+    def test_none_when_no_captcha_field(self) -> None:
+        from tron_roll_call_hero.tron_http import LoginForm, detect_captcha_field
+
+        form = LoginForm(action_url="https://x/submit", fields={"execution": "e"})
+        self.assertIsNone(detect_captcha_field(form))
+
+    def test_ignores_prefilled_captcha_field(self) -> None:
+        from tron_roll_call_hero.tron_http import LoginForm, detect_captcha_field
+
+        # A captcha-named field that already has a value is not a slot to fill.
+        form = LoginForm(action_url="https://x/submit", fields={"captcha": "prefilled"})
+        self.assertIsNone(detect_captcha_field(form))
+
+
 if __name__ == "__main__":
     unittest.main()

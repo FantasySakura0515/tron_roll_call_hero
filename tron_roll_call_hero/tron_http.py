@@ -149,6 +149,17 @@ class LoginOutcome:
 
 
 @dataclass(frozen=True)
+class BuiltinLoginResult:
+    final_url: str
+    has_session: bool
+    reason: str  # "success" | "captcha_error" | "rejected"
+
+
+CAPTCHA_FIELD_HINTS = ("captcha", "validate", "verifycode", "vcode")
+CAPTCHA_ERROR_HINTS = ("captcha", "驗證碼", "verification code", "validate code", "驗證")
+
+
+@dataclass(frozen=True)
 class RollcallsResult:
     url: str
     status_code: int
@@ -164,6 +175,7 @@ class TronHttpEndpoints:
     courses_url: str = COURSES_URL
     session_cookie_domain: str = "ilearn.thu.edu.tw"
     auth_flow: str = "thu_cas"
+    captcha_url: str = ""
 
 
 DEFAULT_ENDPOINTS = TronHttpEndpoints()
@@ -201,6 +213,7 @@ def endpoints_from_provider(provider: Any) -> TronHttpEndpoints:
         ),
         session_cookie_domain=cookie_domain,
         auth_flow=str(provider.get("auth_flow") or ""),
+        captcha_url=str(provider.get("captcha_url") or ""),
     )
 
 
@@ -234,6 +247,15 @@ def extract_login_form(html_text: str, base_url: str = LOGIN_URL) -> LoginForm:
         return LoginForm(action_url=urljoin(base_url, action), fields=fields)
 
     raise LoginPageChangedError("找不到登入表單的 action URL，可能網站結構已更改。")
+
+
+def detect_captcha_field(form: LoginForm, hints: tuple = CAPTCHA_FIELD_HINTS) -> Optional[str]:
+    """Return the name of an empty captcha-like field, or ``None``."""
+    for name, value in form.fields.items():
+        lowered = name.lower()
+        if not value and any(hint in lowered for hint in hints):
+            return name
+    return None
 
 
 def _extract_public_cloud_attr(pattern: re.Pattern[str], html_text: str) -> str:
@@ -517,6 +539,57 @@ class TronHttpClient:
             form = extract_login_form(html_text, sso_login_form_url)
         return await self._complete_tku_login_form(form)
 
+    def _session_present(self) -> bool:
+        if self.endpoints.session_cookie_domain == DEFAULT_ENDPOINTS.session_cookie_domain:
+            return has_session_cookie(self.session)
+        try:
+            return has_session_cookie(self.session, self.endpoints.session_cookie_domain)
+        except TypeError:
+            # Some legacy tests and external monkeypatches replace
+            # has_session_cookie with a one-argument callable.
+            return has_session_cookie(self.session)
+
+    def captcha_image_url(self, form_url: str) -> str:
+        configured = str(getattr(self.endpoints, "captcha_url", "") or "")
+        if configured:
+            return configured
+        return urljoin(form_url, "captcha.jpg")
+
+    async def fetch_captcha_image(self, form_url: str) -> bytes:
+        async with self.session.get(
+            self.captcha_image_url(form_url), **self.request_kwargs()
+        ) as resp:
+            if resp.status != 200:
+                raise LoginPageChangedError("驗證碼圖片下載失敗（HTTP {}）。".format(resp.status))
+            return await resp.read()
+
+    async def submit_builtin_form_login(
+        self,
+        form: LoginForm,
+        username: str,
+        password: str,
+        *,
+        captcha_field: str = "",
+        captcha_answer: str = "",
+        captcha_error_hints: tuple = CAPTCHA_ERROR_HINTS,
+    ) -> BuiltinLoginResult:
+        form_data = dict(form.fields)
+        form_data[form.username_field] = username
+        form_data[form.password_field] = password
+        if captcha_field:
+            form_data[captcha_field] = captcha_answer
+        async with self.session.post(
+            form.action_url, data=form_data, **self.request_kwargs()
+        ) as resp:
+            html_text = await resp.text()
+            final_url = str(resp.url)
+        if self._session_present():
+            return BuiltinLoginResult(final_url=final_url, has_session=True, reason="success")
+        lowered = html_text.lower()
+        if any(hint.lower() in lowered for hint in captcha_error_hints):
+            return BuiltinLoginResult(final_url=final_url, has_session=False, reason="captcha_error")
+        return BuiltinLoginResult(final_url=final_url, has_session=False, reason="rejected")
+
     async def submit_login(self, form: LoginForm, username: str, password: str) -> LoginOutcome:
         form_data = dict(form.fields)
         form_data.update(
@@ -548,15 +621,7 @@ class TronHttpClient:
         if headers is not None:
             final_url = await self._follow_tku_login_redirects(html_text, final_url)
 
-        if self.endpoints.session_cookie_domain == DEFAULT_ENDPOINTS.session_cookie_domain:
-            has_session = has_session_cookie(self.session)
-        else:
-            try:
-                has_session = has_session_cookie(self.session, self.endpoints.session_cookie_domain)
-            except TypeError:
-                # Some legacy tests and external monkeypatches replace
-                # has_session_cookie with a one-argument callable.
-                has_session = has_session_cookie(self.session)
+        has_session = self._session_present()
         if headers is not None and not has_session:
             raise LoginPageChangedError("TKU fast SSO login did not yield an iClass session cookie.")
         if "login" in final_url.lower() and not has_session:
