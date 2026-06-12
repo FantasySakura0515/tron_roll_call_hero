@@ -46,9 +46,8 @@ class ReadmeUsageTest(unittest.TestCase):
         self.assertIn("不要把填好帳密的 `config.yaml`", self.text)
 
     def test_legacy_and_internal_terms_are_absent(self) -> None:
-        # The hidden provider must never appear in the public README.
-        self.assertNotIn("FJU", self.text)
-        self.assertNotIn("fju", self.lowered)
+        # FJU is now a user-visible provider (password + captcha login), so it is
+        # allowed in the README; only stale internal vocabulary stays banned.
         # The previous release tag belongs in the release notes, not the README.
         self.assertNotIn("v0.2.8", self.text)
         # The development-era "acceptance / validation gate" vocabulary is gone for good.

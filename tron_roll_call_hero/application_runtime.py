@@ -22,6 +22,7 @@ from tron_roll_call_hero.account_registry import AccountRegistry, TargetResoluti
 from tron_roll_call_hero.account_state_repository import FileAccountStateRepository
 from tron_roll_call_hero.account_supervisor import DEFAULT_RESTART_BACKOFF, AccountSupervisor
 from tron_roll_call_hero.account_worker import DEFAULT_LOGIN_BACKOFF, AccountWorker
+from tron_roll_call_hero.captcha_solver import OcrCaptchaSolver
 from tron_roll_call_hero.rollcall_artifact_coordinator import (
     CoordinatedNumberCodeResolver,
     RollcallArtifactCoordinator,
@@ -95,6 +96,8 @@ class MonitorApplication:
         restart_backoff: Sequence[float] = DEFAULT_RESTART_BACKOFF,
         sleep: Optional[Callable[[float], Awaitable[None]]] = None,
         clock: Any = None,
+        captcha_solver: Any = None,
+        captcha_prompt: Any = None,
     ) -> None:
         self._config: Mapping[str, Any] = config if isinstance(config, Mapping) else {}
         self._registry = AccountRegistry(self._config)
@@ -106,6 +109,8 @@ class MonitorApplication:
             states=self._repository,
             events=event_sink if event_sink is not None else NullEventSink(),
             clock=clock if clock is not None else SystemClock(),
+            captcha_solver=captcha_solver if captcha_solver is not None else OcrCaptchaSolver(),
+            captcha_prompt=captcha_prompt,
         )
         self._endpoints = endpoints
         operating = self._config.get("operating") if use_schedule else None
@@ -214,6 +219,8 @@ class MonitorApplication:
             states=self._services.states,
             events=self._services.events,
             clock=self._services.clock,
+            captcha_solver=self._services.captcha_solver,
+            captcha_prompt=self._services.captcha_prompt,
         )
 
         changes = await self._supervisor.reconcile(specs, force_restart=force_restart)

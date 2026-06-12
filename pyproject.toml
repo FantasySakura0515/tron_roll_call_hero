@@ -37,6 +37,7 @@ keyring = ["keyring>=24"]
 packaging = ["PyInstaller>=6"]
 qr-image = ["opencv-python-headless>=4.9", "Pillow>=10"]
 browser = ["playwright>=1.44"]
+ocr = ["ddddocr>=1.4"]
 dev = ["PyInstaller>=6", "keyring>=24"]
 
 [project.urls]

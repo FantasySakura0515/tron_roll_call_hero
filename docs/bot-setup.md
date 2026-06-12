@@ -20,6 +20,20 @@ tron bot discord-gateway --supervisor
 加上後，`status / start / stop / force / reauth / qr` 都直接操作
 live `AccountWorker`。
 
+## 輔大（FJU）帳密登入
+
+輔大改為帳密自動登入（不再貼 cookie）：在 config 填輔大帳號密碼即可。
+登入頁有圖形驗證碼，系統會先嘗試自動辨識：
+
+- 自動辨識需安裝選用相依：`pip install '.[ocr]'`（含 ddddocr / onnxruntime，
+  數百 MB）。未安裝時自動辨識一律失敗，改走人工輸入。
+- 互動式 CLI 登入：辨識失敗時會把驗證碼圖片存到
+  `state/captcha/<profile>.jpg` 並請你手動輸入。
+- 背景監控（`bot serve --supervisor`）只做自動辨識、不跳人工輸入；
+  若辨識不出會回報 `captcha_required` 狀態，不會偽裝成功。
+- 仍想用手動 cookie 的話，把該帳號 credential 設為 manual cookie 即可，
+  登入流程會走既有的手動 cookie 路徑。
+
 ## 本機監控儀表板
 
 `tron bot serve --supervisor` 啟動時會自動掛上本機儀表板，

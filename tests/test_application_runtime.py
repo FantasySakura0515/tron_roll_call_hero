@@ -168,6 +168,23 @@ class MonitorApplicationTest(unittest.IsolatedAsyncioTestCase):
         # user1 kept polling the whole time.
         await self.wait_for(lambda: app.worker("user1").state.poll_count > polls_user1)
 
+    def test_services_default_to_ocr_solver_without_prompt(self) -> None:
+        from tron_roll_call_hero.captcha_solver import OcrCaptchaSolver
+
+        app = MonitorApplication(make_config(), base_dir=self.base)
+        services = app._services
+        self.assertIsInstance(services.captcha_solver, OcrCaptchaSolver)
+        self.assertIsNone(services.captcha_prompt)
+
+    def test_explicit_captcha_collaborators_are_kept(self) -> None:
+        solver = object()
+        prompt = object()
+        app = MonitorApplication(
+            make_config(), base_dir=self.base, captcha_solver=solver, captcha_prompt=prompt
+        )
+        self.assertIs(app._services.captcha_solver, solver)
+        self.assertIs(app._services.captcha_prompt, prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

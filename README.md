@@ -325,7 +325,12 @@ PUT {teacher_base}/api/rollcall/{teacher_rollcall_id}/stop_qr_rollcall
 python -m pip install -e .[packaging]   # PyInstaller 打包
 python -m pip install -e .[browser]     # Playwright（登入頁改版時的後備登入）
 python -m pip install -e .[keyring]     # 用系統金鑰圈存帳密
+python -m pip install -e .[ocr]         # 輔大（FJU）登入驗證碼自動辨識（ddddocr）
 ```
+
+> 輔大改為帳密自動登入：登入頁圖形驗證碼會先用 ddddocr 自動辨識，未安裝
+> `.[ocr]` 或辨識失敗時，互動式 CLI 會請你手動輸入驗證碼；背景監控辨識不出
+> 則回報 `captcha_required`，不偽裝成功。
 
 ---
 
