@@ -141,6 +141,20 @@ class BotSupervisorBridgeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.app.worker("user2").state.poll_count, polls_user2 + 1)
         self.assertEqual(self.app.worker("user1").state.poll_count, polls_user1)
 
+    async def test_admin_force_all_triggers_all_running_workers(self) -> None:
+        polls_user1 = self.app.worker("user1").state.poll_count
+        polls_user2 = self.app.worker("user2").state.poll_count
+        result = await self.runtime.handle_text(
+            "force all", adapter="discord", source_user_id="admin-1", channel_id="chan-1"
+        )
+        self.assertTrue(result.ok)
+        results = result.data.get("results") or []
+        self.assertEqual(
+            sorted(item["profile"] for item in results), ["user1", "user2"]
+        )
+        self.assertEqual(self.app.worker("user1").state.poll_count, polls_user1 + 1)
+        self.assertEqual(self.app.worker("user2").state.poll_count, polls_user2 + 1)
+
     async def test_admin_reauth_only_touches_target_worker(self) -> None:
         cookies_user1 = len(list(self.app.worker("user1").session.cookie_jar))
         self.assertGreater(cookies_user1, 0)
@@ -181,6 +195,44 @@ class BotSupervisorBridgeTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(QR_SECRET, encoded)
         self.assertIn("user1", result.reply)
         self.assertIn("user2", result.reply)
+
+
+class SupervisedBotRuntimeFactoryTest(unittest.IsolatedAsyncioTestCase):
+    async def test_factory_builds_connected_app_and_runtime(self) -> None:
+        from troTHU.bot_supervisor_bridge import create_supervised_bot_runtime
+
+        base = make_temp()
+        fake = await FakeTronServer(credentials={"user1": "pass1", "user2": "pass2"}).start()
+        patch = fake.patch_tron_http_urls(tron_http)
+        patch.__enter__()
+        try:
+            app, runtime = create_supervised_bot_runtime(
+                make_config(),
+                base_dir=base,
+                endpoints=fake.endpoints(),
+                use_schedule=False,
+                poll_interval=30.0,
+                login_backoff=(0.01, 0.02),
+                restart_backoff=(0.01, 0.02),
+            )
+            report = await app.start()
+            self.assertEqual(report.started, ("user1", "user2"))
+            deadline = asyncio.get_event_loop().time() + 5.0
+            while asyncio.get_event_loop().time() < deadline:
+                snap = app.snapshot_for("user1")
+                if snap is not None and snap.phase == "monitoring":
+                    break
+                await asyncio.sleep(0.01)
+            result = await runtime.handle_text(
+                "status", adapter="discord", source_user_id="d-user1", channel_id="chan-1"
+            )
+            self.assertTrue(result.ok)
+            self.assertEqual(result.data.get("phase"), "monitoring")
+            await app.stop()
+        finally:
+            patch.__exit__(None, None, None)
+            await fake.close()
+            shutil.rmtree(base, ignore_errors=True)
 
 
 class AdapterSupervisorE2ETest(BotSupervisorBridgeTest):

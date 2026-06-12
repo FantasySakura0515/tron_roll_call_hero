@@ -27,7 +27,25 @@ async def bot_serve_command(args: ctx.argparse.Namespace) -> int:
     host = args.host or '127.0.0.1'
     port = int(args.port)
     adapter = args.adapter or 'all'
-    runtime = create_bot_runtime(ctx.CONFIG, base_dir=ctx.BASE_DIR)
+    supervisor_mode = bool(getattr(args, 'supervisor', False))
+    monitor_app = None
+    if supervisor_mode:
+        try:
+            from troTHU.bot_supervisor_bridge import create_supervised_bot_runtime
+        except ImportError:
+            from bot_supervisor_bridge import create_supervised_bot_runtime
+        monitor_app, runtime = create_supervised_bot_runtime(ctx.CONFIG, base_dir=ctx.BASE_DIR)
+        startup = await monitor_app.start()
+        if not startup.ok:
+            print('Supervisor 啟動失敗：沒有可監控的帳號（{}）。'.format(startup.kind or 'unknown'))
+            await monitor_app.stop()
+            return 1
+        print('Supervisor 已啟動帳號：{}{}'.format(
+            ', '.join(startup.started),
+            '；略過：{}'.format(', '.join(item.get('user', '') for item in startup.skipped)) if startup.skipped else '',
+        ))
+    else:
+        runtime = create_bot_runtime(ctx.CONFIG, base_dir=ctx.BASE_DIR)
     line_sink = create_line_notification_sink(ctx.CONFIG) if adapter in {'all', 'line'} else None
     discord_sink = create_discord_notification_sink(ctx.CONFIG) if adapter in {'all', 'discord'} else None
     telegram_sink = create_telegram_notification_sink(ctx.CONFIG) if adapter == 'all' else None
@@ -36,7 +54,7 @@ async def bot_serve_command(args: ctx.argparse.Namespace) -> int:
     if new_sinks:
         ctx.set_notification_sinks(original_sinks + new_sinks)
     if getattr(args, 'json', False):
-        print(ctx.json_text({'host': host, 'port': port, 'adapter': adapter}))
+        print(ctx.json_text({'host': host, 'port': port, 'adapter': adapter, 'supervisor': supervisor_mode}))
     else:
         print('Bot adapter server listening on http://{}:{} ({})'.format(host, port, adapter))
     try:
@@ -44,6 +62,8 @@ async def bot_serve_command(args: ctx.argparse.Namespace) -> int:
     finally:
         if new_sinks:
             ctx.set_notification_sinks(original_sinks)
+        if monitor_app is not None:
+            await monitor_app.stop()
     return 0
 
 
@@ -76,14 +96,32 @@ async def bot_discord_gateway_command(args: ctx.argparse.Namespace) -> int:
             print('Discord Gateway optional: {}'.format(report.get('status', 'unknown')))
             print('HTTP Interactions recommended: yes')
         return 0
-    try:
-        from troTHU.bot_handlers import create_bot_runtime
-    except ImportError:
-        from bot_handlers import create_bot_runtime
-    runtime = create_bot_runtime(ctx.CONFIG, base_dir=ctx.BASE_DIR)
+    monitor_app = None
+    if getattr(args, 'supervisor', False):
+        try:
+            from troTHU.bot_supervisor_bridge import create_supervised_bot_runtime
+        except ImportError:
+            from bot_supervisor_bridge import create_supervised_bot_runtime
+        monitor_app, runtime = create_supervised_bot_runtime(ctx.CONFIG, base_dir=ctx.BASE_DIR)
+        startup = await monitor_app.start()
+        if not startup.ok:
+            print('Supervisor 啟動失敗：沒有可監控的帳號（{}）。'.format(startup.kind or 'unknown'))
+            await monitor_app.stop()
+            return 1
+        print('Supervisor 已啟動帳號：{}'.format(', '.join(startup.started)))
+    else:
+        try:
+            from troTHU.bot_handlers import create_bot_runtime
+        except ImportError:
+            from bot_handlers import create_bot_runtime
+        runtime = create_bot_runtime(ctx.CONFIG, base_dir=ctx.BASE_DIR)
     if getattr(args, 'json', False):
-        print(ctx.json_text({'status': 'starting', 'gateway_optional': True}))
+        print(ctx.json_text({'status': 'starting', 'gateway_optional': True, 'supervisor': monitor_app is not None}))
     else:
         print('Starting optional Discord Gateway. HTTP Interactions remains the recommended production entry.')
-    await ctx.run_discord_gateway(ctx.CONFIG, runtime)
+    try:
+        await ctx.run_discord_gateway(ctx.CONFIG, runtime)
+    finally:
+        if monitor_app is not None:
+            await monitor_app.stop()
     return 0

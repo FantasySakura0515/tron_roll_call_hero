@@ -585,8 +585,8 @@ Phase 4 驗收：
 - 兩平台共用 `bot_runtime.py` 的授權 / audit / command mapping 層，adapter 只負責平台 I/O。
 - 兩平台指令集一致：`status / start / stop / force / reauth / qr` 全部對應 supervisor 操作。
 
-- [ ] Discord gateway adapter 接 live supervisor（bridge 已就緒：在 bot 入口以 `create_supervisor_bot_handlers(app)` 建 BotRuntime 即接通；入口接線待 app_main 整合）
-- [ ] LINE webhook adapter 接 live supervisor（同上）
+- [x] Discord gateway adapter 接 live supervisor（`tron bot discord-gateway --supervisor`；gateway 與 interactions webhook 共用同一 BotRuntime）
+- [x] LINE webhook adapter 接 live supervisor（`tron bot serve --supervisor` 啟動 in-process monitor + webhook server）
 - [x] 兩平台指令集一致（同一 `adapter_bridge` command mapping + `BotRuntime` 分派，bridge 與平台無關）
 - [ ] LINE tunnel 啟動方式文件化並提供啟動指令
 - [x] `start/stop` 真正控制 worker（`troTHU/bot_supervisor_bridge.py`；BotRuntime 新增 start/stop handler hooks）
@@ -596,7 +596,7 @@ Phase 4 驗收：
 - [x] authorization 規則保持（授權/binding/cooldown/audit 全留在 BotRuntime，未改動）
 - [x] status 顯示真實 worker state
 - [x] `force <profile>` 只觸發指定 worker
-- [ ] `force all` 觸發所有 running workers 並回傳 group result（待補：目前單 profile）
+- [x] `force all` 觸發所有 running workers 並回傳 group result（admin 限定）
 - [x] `reauth <profile>` 只清該 profile cookie/session
 - [x] `status <profile>` 顯示單帳號狀態
 - [x] `status all` 顯示群組摘要（`accounts` 指令回傳全帳號 phase/login 摘要）

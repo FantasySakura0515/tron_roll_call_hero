@@ -15,11 +15,32 @@ QR payloads.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Mapping, Tuple
 
 from troTHU.application_runtime import MonitorApplication
-from troTHU.bot_runtime import BotRuntimeHandlers
+from troTHU.bot_runtime import BotRuntime, BotRuntimeHandlers
 from troTHU.qr_fanout import submit_group_qr_payload
+
+
+def create_supervised_bot_runtime(
+    config: Mapping[str, Any],
+    *,
+    base_dir: Any,
+    **app_options: Any,
+) -> Tuple[MonitorApplication, BotRuntime]:
+    """Build a monitor application plus a bot runtime wired to its supervisor.
+
+    The caller owns the lifecycle: ``await app.start()`` before serving the
+    adapters and ``await app.stop()`` on shutdown. ``app_options`` pass through
+    to :class:`MonitorApplication` (endpoints, intervals, backoffs, ...).
+    """
+    app = MonitorApplication(config, base_dir=base_dir, **app_options)
+    runtime = BotRuntime(
+        dict(config),
+        handlers=create_supervisor_bot_handlers(app),
+        runtime_base_dir=base_dir,
+    )
+    return app, runtime
 
 
 def _status_line(snapshot: Any) -> str:
@@ -60,6 +81,21 @@ def create_supervisor_bot_handlers(app: MonitorApplication) -> BotRuntimeHandler
         return {"reply": reply, "worker_stopped": bool(ok)}
 
     async def force_check(profile: str = "", command: Any = None, admin: bool = False, **_: Any) -> Dict[str, Any]:
+        if profile.strip().lower() == "all":
+            if not admin:
+                return {"reply": "force all requires admin.", "ok": False, "reason": "admin_required"}
+            results = []
+            lines = []
+            for running_profile in app.supervisor.running_profiles() if app.supervisor else ():
+                worker = app.worker(running_profile)
+                if worker is None:
+                    continue
+                outcome = await worker.force_check()
+                detail = outcome.get("decision") or outcome.get("reason") or "unknown"
+                results.append({"profile": running_profile, **outcome})
+                lines.append("{}: checked ({})".format(running_profile, detail))
+            ok = bool(results) and all(item.get("ok") for item in results)
+            return {"reply": "\n".join(lines) or "no running workers", "ok": ok, "results": results}
         worker = app.worker(profile)
         if worker is None:
             return {"reply": "{}: no worker".format(profile), "ok": False, "reason": "no_worker"}

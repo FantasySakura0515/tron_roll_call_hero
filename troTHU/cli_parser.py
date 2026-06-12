@@ -204,6 +204,7 @@ def build_arg_parser() -> ctx.argparse.ArgumentParser:
     bot_serve.add_argument('--host', default='127.0.0.1', help='bind host')
     bot_serve.add_argument('--port', type=int, default=8787, help='bind port')
     bot_serve.add_argument('--adapter', choices=('all', 'generic', 'line', 'discord'), default='all')
+    bot_serve.add_argument('--supervisor', action='store_true', help='run the multi-account monitor in-process and route bot commands to live workers')
     bot_serve.add_argument('--json', action='store_true', help='print startup metadata as JSON')
     bot_schema = bot_subcommands.add_parser('discord-schema', help='print Discord slash command schema')
     bot_schema.add_argument('--json', action='store_true', help='print schema as JSON')
@@ -213,5 +214,6 @@ def build_arg_parser() -> ctx.argparse.ArgumentParser:
     bot_discord_sync.add_argument('--json', action='store_true', help='print JSON')
     bot_discord_gateway = bot_subcommands.add_parser('discord-gateway', help='run optional Discord Gateway')
     bot_discord_gateway.add_argument('--dry-run', action='store_true', help='print safe health without connecting')
+    bot_discord_gateway.add_argument('--supervisor', action='store_true', help='run the multi-account monitor in-process and route bot commands to live workers')
     bot_discord_gateway.add_argument('--json', action='store_true', help='print JSON')
     return parser
