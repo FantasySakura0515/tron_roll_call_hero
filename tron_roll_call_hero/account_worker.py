@@ -325,11 +325,19 @@ class AccountWorker:
         return outcome
 
     def request_reauth(self) -> bool:
-        """Drop this account's session cookies so the loop re-logs in on its own."""
+        """Drop this account's session cookies so the loop re-logs in on its own.
+
+        Also clears the saved cookie cache so the next login is genuinely fresh
+        (otherwise the cached session would just be restored and reused).
+        """
         if self._session is None or getattr(self._session, "closed", True):
             return False
         with contextlib.suppress(Exception):
             self._session.cookie_jar.clear()
+        cookies = getattr(self._services, "cookies", None) if self._services is not None else None
+        if cookies is not None:
+            with contextlib.suppress(Exception):
+                cookies.clear_cookies(self.spec.profile)
         self._state.login = LoginState(
             status="reauth_requested",
             credential_source=self._state.login.credential_source,

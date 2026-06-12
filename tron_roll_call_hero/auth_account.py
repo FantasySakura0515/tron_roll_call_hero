@@ -98,6 +98,29 @@ def _save_cookies(account: AccountContext) -> None:
     cookies.save_cookies(account.spec.profile, _dump_session_cookies(account.session))
 
 
+def _restore_cookies(account: AccountContext) -> bool:
+    """Load this account's saved cookies into its session. Returns True if any
+    cookie was applied, so the caller can probe before falling back to login."""
+    services = account.services
+    cookies = getattr(services, "cookies", None) if services is not None else None
+    if cookies is None:
+        return False
+    try:
+        records = cookies.load_cookies(account.spec.profile)
+    except Exception:
+        return False
+    applied = False
+    for record in records or []:
+        if not isinstance(record, Mapping):
+            continue
+        key = str(record.get("key") or "")
+        value = str(record.get("value") or "")
+        if key:
+            account.session.cookie_jar.update_cookies({key: value})
+            applied = True
+    return applied
+
+
 async def login_account(account: AccountContext) -> LoginState:
     spec = account.spec
     provider = providers.get_provider(spec.provider_key)
@@ -120,6 +143,11 @@ async def login_account(account: AccountContext) -> LoginState:
     account.state.login_in_progress = True
     try:
         client = TronHttpClient(account.session, request_ssl=_verify_ssl(account), endpoints=account.endpoints)
+        # Reuse a previously saved session so we only log in — and only solve any
+        # captcha — once. If the saved cookies still authenticate, skip login.
+        if _restore_cookies(account) and has_session_cookie(account.session, domain):
+            if await _confirm_authenticated(client):
+                return _record(account, LoginState(status="success", credential_source="cookie_cache"))
         try:
             account.session.cookie_jar.clear()
             form = await client.fetch_login_form()

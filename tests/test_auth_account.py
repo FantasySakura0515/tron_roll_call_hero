@@ -214,6 +214,16 @@ class _FixedPrompt:
         return self._answer
 
 
+class _CountingSolver:
+    def __init__(self, answer):
+        self._answer = answer
+        self.calls = 0
+
+    def solve(self, image_bytes):
+        self.calls += 1
+        return self._answer
+
+
 class CaptchaLoginTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.base = make_workspace_temp_dir()
@@ -321,6 +331,32 @@ class CaptchaLoginTest(unittest.IsolatedAsyncioTestCase):
         blob = json.dumps([event.to_dict() for event in self.sink.events])
         self.assertNotIn("pass1", blob)
         self.assertNotIn("abcd", blob)
+
+    async def test_saved_cookies_skip_second_login_and_captcha(self) -> None:
+        solver = _CountingSolver("abcd")
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as s1:
+            state1 = await login_account(self.make_account(s1, solver=solver))
+        self.assertEqual(state1.status, "success")
+        self.assertEqual(solver.calls, 1)
+        self.assertTrue(self.repo.load_cookies("fju1"))
+        # Fresh session, same repository -> reuse saved cookies, no captcha.
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as s2:
+            state2 = await login_account(self.make_account(s2, solver=solver))
+        self.assertEqual(state2.status, "success")
+        self.assertEqual(state2.credential_source, "cookie_cache")
+        self.assertEqual(solver.calls, 1)
+
+    async def test_expired_cookies_fall_back_to_full_login(self) -> None:
+        solver = _CountingSolver("abcd")
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as s1:
+            await login_account(self.make_account(s1, solver=solver))
+        self.assertEqual(solver.calls, 1)
+        # Server invalidates the saved session -> probe fails -> full login again.
+        self.fake.expire_account_session("user1")
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as s2:
+            state2 = await login_account(self.make_account(s2, solver=solver))
+        self.assertEqual(state2.status, "success")
+        self.assertEqual(solver.calls, 2)
 
 
 if __name__ == "__main__":

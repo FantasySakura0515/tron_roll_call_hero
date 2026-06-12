@@ -202,6 +202,19 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         await self.wait_for(lambda: "42" in worker.state.completed_number)
         await worker.stop()
 
+    async def test_reauth_clears_saved_cookie_cache(self) -> None:
+        self.fake.rollcalls = []
+        worker = self.make_worker()
+        await worker.start()
+        await self.wait_for(lambda: worker.snapshot().login_status == "success")
+        # Login persisted cookies for this account.
+        self.assertTrue(self.repo.load_cookies("alpha"))
+        # Reauth drops both the live jar and the saved cache (sync, no await
+        # in between, so the loop cannot re-save before we assert).
+        self.assertTrue(worker.request_reauth())
+        self.assertEqual(self.repo.load_cookies("alpha"), [])
+        await worker.stop()
+
     async def test_standby_when_schedule_disabled(self) -> None:
         operating = {day: {"enable": False} for day in range(7)}
         worker = self.make_worker(operating=operating)
