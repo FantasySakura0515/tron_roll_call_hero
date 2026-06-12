@@ -16,9 +16,11 @@ except (ImportError, ModuleNotFoundError):
 
 from tron_roll_call_hero import tron
 from tron_roll_call_hero import tron_http
+from tron_roll_call_hero.adapter_server import create_app
 from tron_roll_call_hero.application_runtime import MonitorApplication
+from tron_roll_call_hero.bot_runtime import BotRuntime
 from tron_roll_call_hero.dashboard_events import DashboardEventStore
-from tron_roll_call_hero.dashboard_server import register_dashboard_routes
+from tron_roll_call_hero.dashboard_server import attach_dashboard, register_dashboard_routes
 from tests.fake_tron_server import FakeTronServer
 
 TEST_WORKSPACE_DIR = Path(__file__).resolve().parents[1]
@@ -247,6 +249,26 @@ class DashboardServerTest(unittest.IsolatedAsyncioTestCase):
             response = await session.get(self.url("/dashboard"))
             text = await response.text()
         self.assertNotIn(TOKEN, text)
+
+    async def test_attach_dashboard_mounts_routes_on_adapter_app(self) -> None:
+        configure, token, url = attach_dashboard(
+            self.app, self.store, host="127.0.0.1", port=8787
+        )
+        self.assertIn("/dashboard?token={}".format(token), url)
+        adapter_app = create_app(
+            make_config(), BotRuntime(make_config()), adapter="generic",
+            configure_app=configure,
+        )
+        async with RunningApp(adapter_app) as running:
+            async with aiohttp.ClientSession() as session:
+                ok = await session.get(
+                    "{}/dashboard/api/status?token={}".format(running.base_url, token)
+                )
+                denied = await session.get(running.base_url + "/dashboard/api/status")
+                health = await session.get(running.base_url + "/health")
+        self.assertEqual(ok.status, 200)
+        self.assertEqual(denied.status, 401)
+        self.assertEqual(health.status, 200)
 
     async def test_invalid_json_body_is_400(self) -> None:
         async with aiohttp.ClientSession() as session:

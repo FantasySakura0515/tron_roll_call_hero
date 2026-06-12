@@ -563,6 +563,52 @@ class TronBotServeCommandTest(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(len(seen_sinks[0]), len(original_sinks) + 1)
         self.assertEqual(tron.NOTIFICATION_SINKS, original_sinks)
 
+    async def test_bot_serve_supervisor_mounts_dashboard_and_prints_url(self) -> None:
+        from unittest.mock import MagicMock
+
+        from tron_roll_call_hero.application_runtime import StartupReport
+        from tron_roll_call_hero.dashboard_events import DashboardEventStore
+
+        captured_kwargs = {}
+        printed = []
+
+        async def fake_run_adapter_server(_config, _runtime, **kwargs):
+            captured_kwargs.update(kwargs)
+
+        class FakeMonitorApp:
+            def __init__(self):
+                self.stopped = False
+
+            async def start(self):
+                return StartupReport(requested="class A", kind="group", started=("user1",))
+
+            async def stop(self):
+                self.stopped = True
+
+        fake_app = FakeMonitorApp()
+        bridge_mock = MagicMock(return_value=(fake_app, object()))
+        with (
+            patch("tron_roll_call_hero.adapter_server.run_adapter_server", new=fake_run_adapter_server),
+            patch(
+                "tron_roll_call_hero.bot_supervisor_bridge.create_supervised_bot_runtime",
+                new=bridge_mock,
+            ),
+            patch("builtins.print", side_effect=lambda *args, **_kw: printed.append(" ".join(map(str, args)))),
+        ):
+            result = await tron.bot_serve_command(
+                SimpleNamespace(
+                    host="127.0.0.1", port=8787, adapter="generic", json=False, supervisor=True
+                )
+            )
+
+        self.assertEqual(result, 0)
+        self.assertTrue(fake_app.stopped)
+        self.assertIsNotNone(captured_kwargs.get("configure_app"))
+        self.assertIsInstance(bridge_mock.call_args.kwargs["event_sink"], DashboardEventStore)
+        dashboard_lines = [line for line in printed if "Dashboard:" in line]
+        self.assertEqual(len(dashboard_lines), 1)
+        self.assertIn("http://127.0.0.1:8787/dashboard?token=", dashboard_lines[0])
+
     def test_bot_serve_command_dispatches_without_running_server(self) -> None:
         def fake_run(coro):
             coro.close()

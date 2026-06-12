@@ -29,12 +29,20 @@ async def bot_serve_command(args: ctx.argparse.Namespace) -> int:
     adapter = args.adapter or 'all'
     supervisor_mode = bool(getattr(args, 'supervisor', False))
     monitor_app = None
+    dashboard = None
     if supervisor_mode:
         try:
             from tron_roll_call_hero.bot_supervisor_bridge import create_supervised_bot_runtime
+            from tron_roll_call_hero.dashboard_events import DashboardEventStore
+            from tron_roll_call_hero.dashboard_server import attach_dashboard
         except ImportError:
             from bot_supervisor_bridge import create_supervised_bot_runtime
-        monitor_app, runtime = create_supervised_bot_runtime(ctx.CONFIG, base_dir=ctx.BASE_DIR)
+            from dashboard_events import DashboardEventStore
+            from dashboard_server import attach_dashboard
+        event_store = DashboardEventStore(ctx.BASE_DIR)
+        monitor_app, runtime = create_supervised_bot_runtime(
+            ctx.CONFIG, base_dir=ctx.BASE_DIR, event_sink=event_store
+        )
         startup = await monitor_app.start()
         if not startup.ok:
             print('Supervisor 啟動失敗：沒有可監控的帳號（{}）。'.format(startup.kind or 'unknown'))
@@ -44,6 +52,8 @@ async def bot_serve_command(args: ctx.argparse.Namespace) -> int:
             ', '.join(startup.started),
             '；略過：{}'.format(', '.join(item.get('user', '') for item in startup.skipped)) if startup.skipped else '',
         ))
+        dashboard = attach_dashboard(monitor_app, event_store, host=host, port=port)
+        print('Dashboard: {}'.format(dashboard[2]))
     else:
         runtime = create_bot_runtime(ctx.CONFIG, base_dir=ctx.BASE_DIR)
     line_sink = create_line_notification_sink(ctx.CONFIG) if adapter in {'all', 'line'} else None
@@ -58,7 +68,14 @@ async def bot_serve_command(args: ctx.argparse.Namespace) -> int:
     else:
         print('Bot adapter server listening on http://{}:{} ({})'.format(host, port, adapter))
     try:
-        await run_adapter_server(ctx.CONFIG, runtime, host=host, port=port, adapter=adapter)
+        await run_adapter_server(
+            ctx.CONFIG,
+            runtime,
+            host=host,
+            port=port,
+            adapter=adapter,
+            configure_app=dashboard[0] if dashboard is not None else None,
+        )
     finally:
         if new_sinks:
             ctx.set_notification_sinks(original_sinks)

@@ -213,6 +213,7 @@ def create_app(
     adapter: str = "all",
     discord_signature_verifier: Any = None,
     discord_followup_sender: Any = None,
+    configure_app: Any = None,
 ):
     """Create an aiohttp application for generic, LINE, and Discord webhooks."""
     if web is None:
@@ -391,6 +392,8 @@ def create_app(
     app.router.add_post("/adapter/{adapter}/message", generic_message)
     app.router.add_post("/line/webhook", line_webhook)
     app.router.add_post("/discord/interactions", discord_interactions)
+    if configure_app is not None:
+        configure_app(app)
     return app
 
 
@@ -404,6 +407,7 @@ async def run_adapter_server(
     line_sender: Any = None,
     discord_signature_verifier: Any = None,
     discord_followup_sender: Any = None,
+    configure_app: Any = None,
 ) -> None:
     """Run the adapter server until cancelled."""
     if web is None:
@@ -415,6 +419,7 @@ async def run_adapter_server(
         adapter=adapter,
         discord_signature_verifier=discord_signature_verifier,
         discord_followup_sender=discord_followup_sender,
+        configure_app=configure_app,
     )
     runner = web.AppRunner(app)
     await runner.setup()
