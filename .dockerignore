@@ -1,0 +1,13 @@
+.git
+.venv
+state
+log
+config.yaml
+config.advanced.yaml
+tests
+**/__pycache__
+*.pyc
+dist
+build
+*.egg-info
+docs

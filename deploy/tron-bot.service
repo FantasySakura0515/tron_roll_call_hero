@@ -1,0 +1,15 @@
+[Unit]
+Description=tron-roll-call-hero Discord bot (multi-account rollcall supervisor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/tron-roll-call-hero
+EnvironmentFile=/opt/tron-roll-call-hero/.env
+ExecStart=/usr/bin/env python -m tron_roll_call_hero.tron bot discord-gateway --supervisor
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

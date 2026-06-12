@@ -1,0 +1,36 @@
+# 複製成 config.yaml 後填寫。注意：這不是標準 YAML，是本專案自訂的簡單格式。
+# 冒號後有沒有空格都可以；學校大小寫不分（FJU/fju/輔仁 都認得）。
+
+now: class A
+
+accounts:
+  user:YOUR_STUDENT_ID
+  passwd:(你的輔大密碼)
+  school:FJU
+
+  user:(另一個帳號，例如東海)
+  passwd:(密碼)
+  school:THU
+
+group:
+  class:A
+    school:FJU
+    user:YOUR_STUDENT_ID
+
+# 教師帳號（選用）。填了就會自動完成 QR 點名；留空則 QR 走 Discord 手動 /qr。
+teacher:
+  user:(教師帳號，留空=不啟用自動 QR)
+  passwd:(教師密碼)
+  school:TRONCLASS
+  course:(留空自動偵測)
+
+# 上課時段（什麼時候才自動盯點名）。0=週日 … 6=週六。
+operating:
+  1:
+    enable:true
+    range:
+    - 08:00 - 18:00
+  3:
+    enable:true
+    range:
+    - 08:00 - 18:00

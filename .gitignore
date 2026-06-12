@@ -24,6 +24,8 @@ tmp*/
 .env.*
 *.env
 *.local
+# ...but keep the committed template.
+!.env.example
 *.local.*
 *.secret
 *.secrets

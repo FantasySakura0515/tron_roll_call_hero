@@ -1,0 +1,13 @@
+services:
+  tron-bot:
+    build:
+      context: .
+      args:
+        INSTALL_OCR: "1"
+    image: tron-roll-call-hero
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./state:/app/state
+      - ./log:/app/log
