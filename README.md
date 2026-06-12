@@ -53,6 +53,23 @@ python -m tron_roll_call_hero.tron run --no-input
 
 > 啟動後它**不會清螢幕、不會跳全螢幕介面**，只會在視窗裡一行一行印出目前在做什麼（正在登入、目前時段、偵測到點名、簽到成功…），讓你一眼看出它還活著。
 
+### 在伺服器上用 Discord bot 跑（推薦：真多帳號、24/7）
+
+把它部署到一台一直開著的機器，用 Discord bot 控制多個帳號同時自動點名——數字／雷達全自動，QR 在設好教師帳號時也全自動（否則用 Discord `qr` 指令手動送）。走 Discord Gateway 長連線，**不需要公開網址**。
+
+```bash
+cp config.example.yaml config.yaml   # 填多帳號 + 時段（含輔大 FJU 帳密）
+cp .env.example .env                  # 填 Discord bot 金鑰
+docker compose up -d                  # 一鍵起服務，crash/重開自動拉起
+docker compose logs -f
+```
+
+完整步驟（建 Discord bot、systemd 替代方案、指令用法、安全）見 **[docs/deploy.md](docs/deploy.md)**。
+
+- 真正多帳號並行：每帳號獨立 session / cookie / 狀態，一帳號失敗不影響其他。
+- 預設帶 15% 假點名門檻（等班上開始有人簽到才出手）。
+- 輔大（FJU）帳密 + 圖形驗證碼自動登入（image 預設裝 ddddocr）。
+
 ---
 
 ## 設定檔教學（最重要的一步）

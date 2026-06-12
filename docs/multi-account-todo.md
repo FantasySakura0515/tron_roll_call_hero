@@ -27,6 +27,9 @@
 - account-scoped polling/progress
 - account event identity
 - 本機 dashboard（bot serve --supervisor 內建，token 保護）
+- worker 套用 15% 假點名門檻（account 路徑）
+- QR 自動執行（teacher coordinator 接 supervisor）+ Discord 手動 fallback
+- Docker / systemd 部署交付物與部署指南（docs/deploy.md）
 
 尚未完成的是「真正同時監控與簽到」：
 
