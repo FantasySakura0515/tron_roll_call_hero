@@ -97,6 +97,7 @@ class DashboardServerTest(unittest.IsolatedAsyncioTestCase):
             standby_interval=0.01,
             login_backoff=(0.01, 0.02),
             restart_backoff=(0.01, 0.02),
+            ignore_attendance_rate_gate=True,
         )
         await self.app.start()
         await self.wait_for(

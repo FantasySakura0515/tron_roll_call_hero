@@ -62,7 +62,13 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         await self.fake.close()
         shutil.rmtree(self.base, ignore_errors=True)
 
-    def make_worker(self, *, operating=None, login_backoff=(7.5, 15.5, 31.5)) -> AccountWorker:
+    def make_worker(
+        self,
+        *,
+        operating=None,
+        login_backoff=(7.5, 15.5, 31.5),
+        ignore_attendance_rate_gate: bool = True,
+    ) -> AccountWorker:
         spec = AccountSpec(
             profile="alpha",
             user="user1",
@@ -90,6 +96,7 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
             poll_interval=0.01,
             login_backoff=login_backoff,
             sleep=recording_sleep,
+            ignore_attendance_rate_gate=ignore_attendance_rate_gate,
         )
         self.workers.append(worker)
         return worker
@@ -166,6 +173,34 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event.status, "confirmed")
         self.assertEqual(event.rollcall_id, "42")
         self.assertEqual(event.attendance_type, "number")
+
+    async def test_attendance_gate_blocks_then_allows(self) -> None:
+        # Low attendance -> do not submit; once a classmate signs in -> submit.
+        self.fake.rollcalls = [{"is_number": True, "rollcall_id": 42, "status": "absent"}]
+        self.fake.student_rollcalls = [
+            {"student_id": 1, "user_no": "user1", "status": "pending", "rollcall_status": "on_call"},
+            {"student_id": 2, "user_no": "classmate", "status": "pending", "rollcall_status": "on_call"},
+        ]
+        worker = self.make_worker(ignore_attendance_rate_gate=False)
+        await worker.start()
+        await self.wait_for(lambda: worker.snapshot().poll_count >= 2)
+        # 0% present -> not submitted yet.
+        self.assertEqual(len(self.fake.number_attempts), 0)
+        self.assertNotIn("42", worker.state.completed_number)
+        # One classmate present -> 50% -> next poll submits.
+        self.fake.student_rollcalls[1]["rollcall_status"] = "on_call_fine"
+        await self.wait_for(lambda: "42" in worker.state.completed_number)
+        await worker.stop()
+
+    async def test_ignore_gate_submits_immediately(self) -> None:
+        self.fake.rollcalls = [{"is_number": True, "rollcall_id": 42}]
+        self.fake.student_rollcalls = [
+            {"student_id": 1, "user_no": "user1", "status": "pending", "rollcall_status": "on_call"},
+        ]
+        worker = self.make_worker(ignore_attendance_rate_gate=True)
+        await worker.start()
+        await self.wait_for(lambda: "42" in worker.state.completed_number)
+        await worker.stop()
 
     async def test_standby_when_schedule_disabled(self) -> None:
         operating = {day: {"enable": False} for day in range(7)}

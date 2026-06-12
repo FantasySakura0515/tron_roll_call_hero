@@ -60,7 +60,7 @@ class MonitorApplicationTest(unittest.IsolatedAsyncioTestCase):
         await self.fake.close()
         shutil.rmtree(self.base, ignore_errors=True)
 
-    def make_app(self, config=None) -> MonitorApplication:
+    def make_app(self, config=None, *, ignore_attendance_rate_gate: bool = True) -> MonitorApplication:
         self.app = MonitorApplication(
             config or make_config(),
             base_dir=self.base,
@@ -71,6 +71,7 @@ class MonitorApplicationTest(unittest.IsolatedAsyncioTestCase):
             standby_interval=0.01,
             login_backoff=(0.01, 0.02),
             restart_backoff=(0.01, 0.02),
+            ignore_attendance_rate_gate=ignore_attendance_rate_gate,
         )
         return self.app
 
@@ -167,6 +168,44 @@ class MonitorApplicationTest(unittest.IsolatedAsyncioTestCase):
         await self.wait_for(lambda: app.snapshot_for("user2").phase == "monitoring")
         # user1 kept polling the whole time.
         await self.wait_for(lambda: app.worker("user1").state.poll_count > polls_user1)
+
+    async def test_qr_auto_assist_when_teacher_configured(self) -> None:
+        self.fake.credentials["teacher"] = "tpass"
+        self.fake.rollcalls = [{"is_qrcode": True, "rollcall_id": 77, "status": "absent"}]
+        self.fake.student_rollcalls = [
+            {"student_id": 1, "user_no": "user1", "status": "pending", "rollcall_status": "on_call"},
+            {"student_id": 2, "user_no": "user2", "status": "pending", "rollcall_status": "on_call"},
+        ]
+        config = make_config()
+        config["teacher"] = {"user": "teacher", "passwd": "tpass", "school": "thu", "course": "course-1"}
+        app = self.make_app(config)
+        await app.start()
+        await self.wait_for(
+            lambda: all(
+                app.worker(p) is not None and "77" in app.worker(p).state.completed_qr
+                for p in ("user1", "user2")
+            ),
+            timeout=8.0,
+        )
+        # single-flight: teacher rollcall created exactly once.
+        self.assertEqual(len(self.fake.teacher_rollcalls), 1)
+        await app.stop()
+
+    async def test_qr_without_teacher_reports_manual_required(self) -> None:
+        self.fake.rollcalls = [{"is_qrcode": True, "rollcall_id": 88, "status": "absent"}]
+        self.fake.student_rollcalls = [
+            {"student_id": 1, "user_no": "user1", "status": "pending", "rollcall_status": "on_call"},
+            {"student_id": 2, "user_no": "user2", "status": "pending", "rollcall_status": "on_call"},
+        ]
+        app = self.make_app()  # no teacher block
+        await app.start()
+        await self.wait_for(
+            lambda: app.worker("user1") is not None
+            and app.worker("user1").last_result is not None
+            and app.worker("user1").last_result.error_code == "qr_manual_required",
+            timeout=8.0,
+        )
+        await app.stop()
 
     def test_services_default_to_ocr_solver_without_prompt(self) -> None:
         from tron_roll_call_hero.captcha_solver import OcrCaptchaSolver

@@ -29,6 +29,9 @@ from tron_roll_call_hero.rollcall_artifact_coordinator import (
 )
 from tron_roll_call_hero.runtime_events import group_event
 from tron_roll_call_hero.runtime_services import NullEventSink, CredentialResolver, RuntimeServices, SystemClock
+from tron_roll_call_hero.teacher_qr_coordinator import TeacherQrCoordinator
+from tron_roll_call_hero.tron_http import endpoints_from_provider
+from tron_roll_call_hero import providers
 
 
 @dataclass(frozen=True)
@@ -98,11 +101,16 @@ class MonitorApplication:
         clock: Any = None,
         captcha_solver: Any = None,
         captcha_prompt: Any = None,
+        ignore_attendance_rate_gate: Optional[bool] = None,
     ) -> None:
         self._config: Mapping[str, Any] = config if isinstance(config, Mapping) else {}
         self._registry = AccountRegistry(self._config)
         self._repository = FileAccountStateRepository(base_dir)
         self._coordinator = RollcallArtifactCoordinator()
+        self._endpoints = endpoints
+        self._sleep = sleep
+        self._ignore_gate = self._resolve_ignore_gate(ignore_attendance_rate_gate)
+        self._teacher_coordinator = self._build_teacher_coordinator()
         self._services = RuntimeServices(
             credentials=CredentialResolver(self._config),
             cookies=self._repository,
@@ -111,17 +119,58 @@ class MonitorApplication:
             clock=clock if clock is not None else SystemClock(),
             captcha_solver=captcha_solver if captcha_solver is not None else OcrCaptchaSolver(),
             captcha_prompt=captcha_prompt,
+            teacher_qr=self._teacher_coordinator,
         )
-        self._endpoints = endpoints
         operating = self._config.get("operating") if use_schedule else None
         self._operating = operating if isinstance(operating, Mapping) else None
         self._poll_interval = poll_interval
         self._standby_interval = standby_interval
         self._login_backoff = tuple(login_backoff)
         self._restart_backoff = tuple(restart_backoff)
-        self._sleep = sleep
         self._supervisor: Optional[AccountSupervisor] = None
         self._resolution: Optional[TargetResolution] = None
+
+    def _resolve_ignore_gate(self, override: Optional[bool]) -> bool:
+        if override is not None:
+            return bool(override)
+        monitor = self._config.get("monitor") if isinstance(self._config, Mapping) else None
+        if isinstance(monitor, Mapping):
+            return bool(monitor.get("ignore_attendance_rate_gate", False))
+        return False
+
+    def _teacher_block(self) -> Optional[Dict[str, str]]:
+        teacher = self._config.get("teacher") if isinstance(self._config, Mapping) else None
+        if not isinstance(teacher, Mapping):
+            return None
+        user = str(teacher.get("user") or "").strip()
+        passwd = str(teacher.get("passwd") or "").strip()
+        if not user or not passwd or user.startswith("(") or passwd.startswith("("):
+            return None
+        school = str(teacher.get("school") or "tronclass").strip() or "tronclass"
+        return {
+            "user": user,
+            "passwd": passwd,
+            "school": school,
+            "course": str(teacher.get("course") or "").strip(),
+        }
+
+    def _build_teacher_coordinator(self) -> Optional[TeacherQrCoordinator]:
+        block = self._teacher_block()
+        if block is None:
+            return None
+        if self._endpoints is not None:
+            endpoints = self._endpoints
+        else:
+            try:
+                endpoints = endpoints_from_provider(providers.get_provider(block["school"]).to_config())
+            except Exception:
+                return None
+        return TeacherQrCoordinator(
+            endpoints=endpoints,
+            credentials=(block["user"], block["passwd"]),
+            course_id=block["course"],
+            sleep=self._sleep,
+        )
 
     # ------------------------------------------------------------------
     # Assembly
@@ -138,6 +187,7 @@ class MonitorApplication:
             login_backoff=self._login_backoff,
             sleep=self._sleep,
             number_resolver=CoordinatedNumberCodeResolver(self._coordinator),
+            ignore_attendance_rate_gate=self._ignore_gate,
         )
 
     # ------------------------------------------------------------------
@@ -167,6 +217,8 @@ class MonitorApplication:
         if self._supervisor is not None:
             await self._supervisor.stop()
         await self._coordinator.shutdown()
+        if self._teacher_coordinator is not None:
+            await self._teacher_coordinator.shutdown()
 
     async def reload(self, new_config: Mapping[str, Any], now: Optional[str] = None) -> ReloadReport:
         """Reconcile running workers against a new config.
@@ -221,6 +273,7 @@ class MonitorApplication:
             clock=self._services.clock,
             captcha_solver=self._services.captcha_solver,
             captcha_prompt=self._services.captcha_prompt,
+            teacher_qr=self._services.teacher_qr,
         )
 
         changes = await self._supervisor.reconcile(specs, force_restart=force_restart)

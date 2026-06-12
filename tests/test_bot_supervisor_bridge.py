@@ -88,6 +88,7 @@ class BotSupervisorBridgeTest(unittest.IsolatedAsyncioTestCase):
             standby_interval=0.01,
             login_backoff=(0.01, 0.02),
             restart_backoff=(0.01, 0.02),
+            ignore_attendance_rate_gate=True,
         )
         await self.app.start()
         await self.wait_for(
@@ -214,6 +215,7 @@ class SupervisedBotRuntimeFactoryTest(unittest.IsolatedAsyncioTestCase):
                 poll_interval=30.0,
                 login_backoff=(0.01, 0.02),
                 restart_backoff=(0.01, 0.02),
+                ignore_attendance_rate_gate=True,
             )
             report = await app.start()
             self.assertEqual(report.started, ("user1", "user2"))

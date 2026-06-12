@@ -38,15 +38,21 @@ from tron_roll_call_hero.account_models import (
     AccountRuntimeState,
     AccountSpec,
     AccountWorkerSnapshot,
+    AttendanceType,
     LoginState,
     SubmissionResult,
     SubmissionStatus,
 )
+from tron_roll_call_hero.attendance_gate import attendance_gate_passed
 from tron_roll_call_hero.auth_account import login_account
 from tron_roll_call_hero.number_account import answer_number_rollcall
 from tron_roll_call_hero.qr_account import submit_qr_payload_account
 from tron_roll_call_hero.radar_account import answer_radar_rollcall
-from tron_roll_call_hero.rollcall_account import poll_rollcall_decision
+from tron_roll_call_hero.rollcall_account import (
+    account_completed,
+    fetch_account_progress,
+    poll_rollcall_decision,
+)
 from tron_roll_call_hero.runtime_events import account_event
 from tron_roll_call_hero.runtime_helpers import is_within_any_schedule
 from tron_roll_call_hero.tron_http import TronHttpError, UnauthorizedError
@@ -89,6 +95,7 @@ class AccountWorker:
         sleep: Optional[Callable[[float], Awaitable[None]]] = None,
         now_provider: Optional[Callable[[], datetime]] = None,
         number_resolver: Any = None,
+        ignore_attendance_rate_gate: bool = False,
     ) -> None:
         self.spec = spec
         self._factory = AccountContextFactory(config, services=services)
@@ -102,6 +109,7 @@ class AccountWorker:
         self._custom_sleep = sleep
         self._now_provider = now_provider
         self._number_resolver = number_resolver
+        self._ignore_gate = bool(ignore_attendance_rate_gate)
 
         self._state = AccountRuntimeState()
         self._phase = "created"
@@ -239,18 +247,31 @@ class AccountWorker:
             logged_in = await self._execute_decision(context, decision)
             await self._sleep(self._poll_interval)
 
+    _QR_STATUSES = {"unsupported_qrcode", "is_qr", "is_qrcode", "is_qr_code"}
+    _KIND_BY_STATUS = {"is_number": "number", "is_radar": "radar"}
+
     async def _execute_decision(self, context: AccountContext, decision: Any) -> bool:
         """Run the matching account executor. Returns False when re-login is needed."""
         status = str(getattr(decision, "status", "") or "")
         rollcall = getattr(decision, "rollcall", None)
+        kind = self._KIND_BY_STATUS.get(status) or ("qr" if status in self._QR_STATUSES else "")
+        if not kind:
+            return True
+        rid = _rollcall_id(rollcall)
+        if rid and account_completed(context, kind, rid):
+            return True
+        if not await self._gate_allows(context, rid):
+            return True  # fake-rollcall protection: wait, do not submit this round
         result: Optional[SubmissionResult] = None
         try:
             if status == "is_number":
                 result = await answer_number_rollcall(
-                    context, _rollcall_id(rollcall), resolver=self._number_resolver
+                    context, rid, resolver=self._number_resolver
                 )
             elif status == "is_radar":
                 result = await answer_radar_rollcall(context, rollcall if isinstance(rollcall, Mapping) else {})
+            elif kind == "qr":
+                result = await self._execute_qr(context, rollcall, rid)
         except UnauthorizedError:
             self._state.last_error = {"code": "unauthorized"}
             return False
@@ -261,6 +282,28 @@ class AccountWorker:
                 self._state.last_error = {"code": "unauthorized"}
                 return False
         return True
+
+    async def _gate_allows(self, context: AccountContext, rid: str) -> bool:
+        if self._ignore_gate or not rid:
+            return True
+        try:
+            progress = await fetch_account_progress(context, rid)
+        except (TronHttpError, *_NETWORK_ERRORS):
+            return False
+        return attendance_gate_passed(progress, ignore_gate=self._ignore_gate)
+
+    async def _execute_qr(self, context: AccountContext, rollcall: Any, rid: str) -> SubmissionResult:
+        coordinator = getattr(self._services, "teacher_qr", None)
+        if coordinator is None:
+            return SubmissionResult(
+                profile=context.spec.profile,
+                provider_key=context.spec.provider_key,
+                rollcall_id=rid,
+                attendance_type=AttendanceType.QR,
+                status=SubmissionStatus.SKIPPED_NOT_APPLICABLE,
+                error_code="qr_manual_required",
+            )
+        return await coordinator.assist(context, rollcall)
 
     async def force_check(self) -> Dict[str, Any]:
         """Run one immediate poll/execute cycle for this account only."""
