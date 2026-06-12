@@ -63,6 +63,7 @@ HIDDEN_IMPORTS = sorted(
             "tron_roll_call_hero.connection_probe",
             "tron_roll_call_hero.course_discovery",
             "tron_roll_call_hero.dashboard_events",
+            "tron_roll_call_hero.dashboard_server",
             "tron_roll_call_hero.debug_capture",
             "tron_roll_call_hero.discord_adapter",
             "tron_roll_call_hero.discord_gateway",
