@@ -87,6 +87,8 @@ class BotAuditEvent:
 class BotRuntimeHandlers:
     status: Optional[Callable[..., Any]] = None
     accounts: Optional[Callable[..., Any]] = None
+    start: Optional[Callable[..., Any]] = None
+    stop: Optional[Callable[..., Any]] = None
     force_check: Optional[Callable[..., Any]] = None
     reauth: Optional[Callable[..., Any]] = None
     qr_submit: Optional[Callable[..., Any]] = None
@@ -561,9 +563,15 @@ class BotRuntime:
         if action == "start":
             self.running_profiles.add(profile)
             self._persist_bot_state(profile, "running")
+            start_reply = "{} started.".format(profile)
+            start_data: Dict[str, Any] = {"state": "running"}
+            if self.handlers.start is not None:
+                value = await _maybe_await(self.handlers.start(profile=profile, command=command))
+                start_reply = _format_handler_reply(value, start_reply)
+                start_data.update(_handler_data(value))
             return await self._finish(
                 command,
-                BotCommandResult(True, action, profile, "{} started.".format(profile), {"state": "running"}),
+                BotCommandResult(True, action, profile, start_reply, start_data),
                 profile=profile,
                 admin=is_admin,
                 allowed=True,
@@ -576,9 +584,15 @@ class BotRuntime:
         if action == "stop":
             self.running_profiles.discard(profile)
             self._persist_bot_state(profile, "stopped")
+            stop_reply = "{} stopped.".format(profile)
+            stop_data: Dict[str, Any] = {"state": "stopped"}
+            if self.handlers.stop is not None:
+                value = await _maybe_await(self.handlers.stop(profile=profile, command=command))
+                stop_reply = _format_handler_reply(value, stop_reply)
+                stop_data.update(_handler_data(value))
             return await self._finish(
                 command,
-                BotCommandResult(True, action, profile, "{} stopped.".format(profile), {"state": "stopped"}),
+                BotCommandResult(True, action, profile, stop_reply, stop_data),
                 profile=profile,
                 admin=is_admin,
                 allowed=True,

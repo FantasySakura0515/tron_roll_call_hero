@@ -44,6 +44,7 @@ HIDDEN_IMPORTS = sorted(
             "troTHU.bot_handlers",
             "troTHU.bot_runtime",
             "troTHU.bot_status",
+            "troTHU.bot_supervisor_bridge",
             "troTHU.cli_accounts",
             "troTHU.cli_app",
             "troTHU.cli_bot",

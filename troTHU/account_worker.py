@@ -18,7 +18,7 @@ import asyncio
 import contextlib
 import ssl
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, Sequence
 
 try:
     import aiohttp
@@ -38,6 +38,7 @@ from troTHU.account_models import (
     AccountRuntimeState,
     AccountSpec,
     AccountWorkerSnapshot,
+    LoginState,
     SubmissionResult,
 )
 from troTHU.auth_account import login_account
@@ -256,6 +257,37 @@ class AccountWorker:
             if result.error_code == "unauthorized":
                 self._state.last_error = {"code": "unauthorized"}
                 return False
+        return True
+
+    async def force_check(self) -> Dict[str, Any]:
+        """Run one immediate poll/execute cycle for this account only."""
+        context = self._context
+        if context is None or self._session is None or getattr(self._session, "closed", True):
+            return {"ok": False, "reason": "not_running"}
+        try:
+            decision = await poll_rollcall_decision(context)
+        except UnauthorizedError:
+            self._state.last_error = {"code": "unauthorized"}
+            return {"ok": False, "reason": "unauthorized"}
+        except (TronHttpError, *_NETWORK_ERRORS):
+            return {"ok": False, "reason": "poll_error"}
+        self._last_check_status = str(decision.status or "")
+        await self._execute_decision(context, decision)
+        outcome: Dict[str, Any] = {"ok": True, "decision": self._last_check_status}
+        if self._last_result is not None:
+            outcome["result"] = self._last_result.to_dict()
+        return outcome
+
+    def request_reauth(self) -> bool:
+        """Drop this account's session cookies so the loop re-logs in on its own."""
+        if self._session is None or getattr(self._session, "closed", True):
+            return False
+        with contextlib.suppress(Exception):
+            self._session.cookie_jar.clear()
+        self._state.login = LoginState(
+            status="reauth_requested",
+            credential_source=self._state.login.credential_source,
+        )
         return True
 
     async def submit_manual_qr(self, raw_payload: str, **kwargs: Any) -> SubmissionResult:
