@@ -20,6 +20,23 @@ tron bot discord-gateway --supervisor
 加上後，`status / start / stop / force / reauth / qr` 都直接操作
 live `AccountWorker`。
 
+## 本機監控儀表板
+
+`tron bot serve --supervisor` 啟動時會自動掛上本機儀表板，
+console 會印出一次性網址：
+
+```text
+Dashboard: http://127.0.0.1:8787/dashboard?token=<隨機 token>
+```
+
+- token 每次啟動隨機產生；所有 `/dashboard` 路由都要求 `?token=` 或
+  `X-Dashboard-Token` header，錯誤回 401。
+- 頁面每 3 秒輪詢：帳號卡片（phase / login / polls / 最近錯誤 +
+  Force / Reauth 按鈕）、點名事件流、QR 提交（全部或單帳號）、近 7 天統計。
+- 事件歷史存於 `state/dashboard/events-YYYY-MM-DD.jsonl`，內容經過
+  secret sanitizer，不含密碼 / cookie / QR data。
+- server 預設綁 127.0.0.1；如需遠端存取請走 tunnel，不要直接對外開放。
+
 ## 指令集（兩平台一致）
 
 | 指令 | 行為 |

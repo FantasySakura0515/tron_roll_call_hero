@@ -26,6 +26,7 @@
 - account-scoped auth
 - account-scoped polling/progress
 - account event identity
+- 本機 dashboard（bot serve --supervisor 內建，token 保護）
 
 尚未完成的是「真正同時監控與簽到」：
 
@@ -561,11 +562,11 @@ Phase 4 驗收：
 - [ ] 每帳號 phase/login/check/error
 - [ ] interactive console 不互相覆寫
 - [ ] JSON status 包含 accounts
-- [ ] dashboard 聚合 per-account repository
+- [x] dashboard 聚合 per-account repository（本機 dashboard 直讀 supervisor snapshot + event store）
 - [ ] console renderer 從 supervisor snapshot 讀資料
 - [ ] console 顯示 partial failure，不把單一帳號失敗當全域失敗
 - [ ] status JSON 顯示 desired accounts / running accounts / skipped accounts
-- [ ] status JSON 不包含 password/cookie/QR data
+- [x] status JSON 不包含 password/cookie/QR data（dashboard API 回應驗證）
 - [ ] legacy single-account status 保持可讀
 
 測試：
