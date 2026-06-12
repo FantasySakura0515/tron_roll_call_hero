@@ -14,7 +14,7 @@ except (ImportError, ModuleNotFoundError):
     aiohttp = None
     web = None
 
-from troTHU import tron, tron_http, radar_runtime
+from tron_roll_call_hero import tron, tron_http, radar_runtime
 from tests.fake_tron_server import FakeTronServer
 
 TEST_WORKSPACE_DIR = Path(__file__).resolve().parents[1]

@@ -69,7 +69,7 @@ except ModuleNotFoundError:
     fake_yaml.safe_dump = safe_dump
     sys.modules["yaml"] = fake_yaml
 
-from troTHU import tron, tron_http
+from tron_roll_call_hero import tron, tron_http
 from tests.fake_tron_server import FakeTronServer
 
 TEST_WORKSPACE_DIR = Path(__file__).resolve().parents[1]
@@ -1454,7 +1454,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             patch.object(tron, "has_session_cookie", return_value=True),
             patch.object(tron, "poll_rollcall_decision", AsyncMock(side_effect=fake_poll_rollcall)),
             patch.object(tron, "handle_rollcall_decision", AsyncMock(return_value="is_qrcode")),
-            patch("troTHU.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
+            patch("tron_roll_call_hero.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
             patch.object(
                 tron,
                 "get_schedule_for_day",
@@ -1518,7 +1518,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             patch.object(tron, "prepare_teacher_assisted_qr", AsyncMock(return_value={"ok": True, "status": "prepared", "student_rollcall_id": "30063"})),
             patch.object(tron, "handle_rollcall_decision", AsyncMock(return_value="is_qrcode")),
             patch.object(tron, "announce_rollcall_start", AsyncMock()),
-            patch("troTHU.monitor_runtime._fetch_monitor_rollcall_progress", progress_mock),
+            patch("tron_roll_call_hero.monitor_runtime._fetch_monitor_rollcall_progress", progress_mock),
             patch.object(tron, "get_schedule_for_day", return_value={"enable": True, "range": ["00:00", "23:59"]}),
             patch.object(tron, "parse_schedule_range", return_value=(dt_time(0, 0), dt_time(23, 59))),
             patch.object(tron, "sleep_or_shutdown", AsyncMock(side_effect=fake_sleep)),
@@ -1570,7 +1570,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             shutdown_event.set()
 
         with (
-            patch("troTHU.monitor_runtime.MONITOR_STARTUP_FAST_WINDOW_SECONDS", 0.0),
+            patch("tron_roll_call_hero.monitor_runtime.MONITOR_STARTUP_FAST_WINDOW_SECONDS", 0.0),
             patch.object(tron, "login", AsyncMock(return_value=make_login_result("success"))),
             patch.object(tron, "has_session_cookie", return_value=True),
             patch.object(tron, "poll_rollcall_decision", AsyncMock(return_value={"status": "not_call", "rollcall": None, "rollcall_type": "", "message": ""})),
@@ -1620,7 +1620,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             patch.object(tron, "has_session_cookie", return_value=True),
             patch.object(tron, "poll_rollcall_decision", AsyncMock(side_effect=fake_poll)),
             patch.object(tron, "handle_rollcall_decision", AsyncMock(return_value="is_number")),
-            patch("troTHU.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
+            patch("tron_roll_call_hero.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
             patch.object(tron, "get_schedule_for_day", return_value={"enable": True, "range": ["00:00", "23:59"]}),
             patch.object(tron, "parse_schedule_range", return_value=(dt_time(0, 0), dt_time(23, 59))),
             patch.object(tron, "sleep_or_shutdown", AsyncMock(side_effect=fake_sleep)),
@@ -1659,7 +1659,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             patch.object(tron, "has_session_cookie", return_value=True),
             patch.object(tron, "poll_rollcall_decision", AsyncMock(return_value={"status": "is_number", "rollcall": {"rollcall_id": "42", "is_number": True}, "rollcall_type": "number", "message": ""})),
             patch.object(tron, "handle_rollcall_decision", handle),
-            patch("troTHU.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
+            patch("tron_roll_call_hero.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
             patch.object(tron, "get_schedule_for_day", return_value={"enable": True, "range": ["00:00", "23:59"]}),
             patch.object(tron, "parse_schedule_range", return_value=(dt_time(0, 0), dt_time(23, 59))),
             patch.object(tron, "sleep_or_shutdown", AsyncMock(side_effect=fake_sleep)),
@@ -1697,7 +1697,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             patch.object(tron, "has_session_cookie", return_value=True),
             patch.object(tron, "poll_rollcall_decision", AsyncMock(return_value={"status": "is_number", "rollcall": {"rollcall_id": "42", "is_number": True}, "rollcall_type": "number", "message": ""})),
             patch.object(tron, "handle_rollcall_decision", handle),
-            patch("troTHU.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
+            patch("tron_roll_call_hero.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
             patch.object(tron, "get_schedule_for_day", return_value={"enable": True, "range": ["00:00", "23:59"]}),
             patch.object(tron, "parse_schedule_range", return_value=(dt_time(0, 0), dt_time(23, 59))),
             patch.object(tron, "sleep_or_shutdown", AsyncMock(side_effect=fake_sleep)),
@@ -1725,7 +1725,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             patch.object(tron, "has_session_cookie", return_value=True),
             patch.object(tron, "poll_rollcall_decision", AsyncMock(return_value={"status": "is_number", "rollcall": {"rollcall_id": "42", "is_number": True}, "rollcall_type": "number", "message": ""})),
             patch.object(tron, "handle_rollcall_decision", handle),
-            patch("troTHU.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
+            patch("tron_roll_call_hero.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
             patch.object(tron, "get_schedule_for_day", return_value={"enable": True, "range": ["00:00", "23:59"]}),
             patch.object(tron, "parse_schedule_range", return_value=(dt_time(0, 0), dt_time(23, 59))),
             patch.object(tron, "sleep_or_shutdown", AsyncMock(side_effect=fake_sleep)),
@@ -1766,7 +1766,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             patch.object(tron, "prepare_teacher_assisted_qr", prepare),
             patch.object(tron, "handle_rollcall_decision", handle),
             patch.object(tron, "announce_rollcall_start", AsyncMock()),
-            patch("troTHU.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
+            patch("tron_roll_call_hero.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
             patch.object(tron, "get_schedule_for_day", return_value={"enable": True, "range": ["00:00", "23:59"]}),
             patch.object(tron, "parse_schedule_range", return_value=(dt_time(0, 0), dt_time(23, 59))),
             patch.object(tron, "sleep_or_shutdown", AsyncMock(side_effect=fake_sleep)),
@@ -1817,7 +1817,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             patch.object(tron, "stop_prepared_teacher_qr", stop_qr),
             patch.object(tron, "handle_rollcall_decision", AsyncMock(return_value="is_qrcode")),
             patch.object(tron, "announce_rollcall_start", AsyncMock()),
-            patch("troTHU.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
+            patch("tron_roll_call_hero.monitor_runtime._fetch_monitor_rollcall_progress", AsyncMock(side_effect=fake_progress)),
             patch.object(tron, "get_schedule_for_day", return_value={"enable": True, "range": ["00:00", "23:59"]}),
             patch.object(tron, "parse_schedule_range", return_value=(dt_time(0, 0), dt_time(23, 59))),
             patch.object(tron, "sleep_or_shutdown", AsyncMock(side_effect=fake_sleep)),
@@ -2055,7 +2055,7 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
         try:
             with (
                 patch.object(tron, "current_datetime", return_value=fixed_now),
-                patch("troTHU.logging_runtime.shutil.get_terminal_size", return_value=os.terminal_size((40, 24))),
+                patch("tron_roll_call_hero.logging_runtime.shutil.get_terminal_size", return_value=os.terminal_size((40, 24))),
                 patch.object(tron.sys.stdout, "write") as write_mock,
                 patch.object(tron.sys.stdout, "flush"),
             ):

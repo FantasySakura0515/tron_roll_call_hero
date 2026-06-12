@@ -26,7 +26,7 @@
 4. 共享服務只能保存真正跨帳號的資料。
 5. 先讓單帳號走新框架，再啟用多帳號並行。
 6. 舊 CLI 與現有測試透過 compatibility wrapper 漸進遷移。
-7. 新核心模組不得 import `troTHU.runtime_context`。
+7. 新核心模組不得 import `tron_roll_call_hero.runtime_context`。
 8. 密碼、cookie、QR data 不進入 dataclass repr、log 或 runtime snapshot。
 
 ## 模組配置
@@ -34,7 +34,7 @@
 維持目前專案的平鋪模組結構，先新增下列檔案：
 
 ```text
-troTHU/
+tron_roll_call_hero/
   account_models.py
   account_registry.py
   account_context.py
@@ -47,7 +47,7 @@ troTHU/
   application_runtime.py
 ```
 
-暫時不建立 `troTHU/runtime/` 子套件。現有程式大量透過
+暫時不建立 `tron_roll_call_hero/runtime/` 子套件。現有程式大量透過
 `runtime_context` lazy export；先平鋪可降低一次性 import 變動。
 
 ## 依賴方向

@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from troTHU.app_shell_dashboard import (
+from tron_roll_call_hero.app_shell_dashboard import (
     build_shell_dashboard_cards,
     build_shell_policy,
     format_shell_dashboard_cards,

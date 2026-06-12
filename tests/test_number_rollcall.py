@@ -1,6 +1,6 @@
 import unittest
 
-from troTHU.number_rollcall import (
+from tron_roll_call_hero.number_rollcall import (
     NumberAttemptStatus,
     classify_number_response,
     coerce_number_code,

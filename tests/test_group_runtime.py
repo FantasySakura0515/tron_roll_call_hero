@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from troTHU import tron
+from tron_roll_call_hero import tron
 
 
 def make_config():

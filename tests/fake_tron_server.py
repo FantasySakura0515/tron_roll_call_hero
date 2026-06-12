@@ -90,7 +90,7 @@ class FakeTronServer:
         return self.base_url + "/api/my-courses?page=1&page_size=50"
 
     def endpoints(self):
-        from troTHU.tron_http import TronHttpEndpoints
+        from tron_roll_call_hero.tron_http import TronHttpEndpoints
 
         return TronHttpEndpoints(
             base_url=self.base_url,
@@ -102,7 +102,7 @@ class FakeTronServer:
         )
 
     def client(self, session):
-        from troTHU.tron_http import TronHttpClient
+        from tron_roll_call_hero.tron_http import TronHttpClient
 
         return TronHttpClient(session, endpoints=self.endpoints())
 

@@ -3,9 +3,9 @@ import json
 import unittest
 from unittest.mock import patch
 
-from troTHU.adapter_bridge import ControlCommand
-from troTHU.bot_runtime import BotRuntime, BotRuntimeHandlers
-from troTHU.discord_gateway import (
+from tron_roll_call_hero.adapter_bridge import ControlCommand
+from tron_roll_call_hero.bot_runtime import BotRuntime, BotRuntimeHandlers
+from tron_roll_call_hero.discord_gateway import (
     OP_DISPATCH,
     OP_HELLO,
     build_gateway_health,

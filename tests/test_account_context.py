@@ -8,9 +8,9 @@ import copy
 import dataclasses
 import unittest
 
-from troTHU import tron
-from troTHU.account_context import AccountContext, AccountContextFactory
-from troTHU.account_models import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.account_context import AccountContext, AccountContextFactory
+from tron_roll_call_hero.account_models import (
     AccountConfig,
     AccountRuntimeState,
     AccountSpec,
@@ -52,7 +52,7 @@ class AccountContextFactoryTest(unittest.TestCase):
         self.assertIn("iclass.tku.edu.tw", tku.endpoints.base_url)
 
     def test_factory_honors_config_provider_endpoint_override(self) -> None:
-        from troTHU import providers
+        from tron_roll_call_hero import providers
 
         config = make_config()
         config["provider"] = providers.normalize_provider_config(
@@ -98,7 +98,7 @@ class AccountContextFactoryTest(unittest.TestCase):
         import ast
         import inspect
 
-        import troTHU.account_context as module
+        import tron_roll_call_hero.account_context as module
 
         tree = ast.parse(inspect.getsource(module))
         imported: list = []

@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from troTHU.global_radar_solver import (
+from tron_roll_call_hero.global_radar_solver import (
     GlobalDistanceObservation,
     GlobalRadarSolverConfig,
     GeoPoint,

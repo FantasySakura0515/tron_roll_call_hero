@@ -4,8 +4,8 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from troTHU import tron
-from troTHU.release_checklist import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.release_checklist import (
     EXPECTED_WINDOWS_ZIP,
     build_release_artifact_manifest,
     build_release_build_plan,
@@ -107,7 +107,7 @@ class ReleaseChecklistTest(unittest.TestCase):
         text = "\n".join(format_release_checklist(report))
 
         self.assertIn("Release checklist:", text)
-        self.assertIn("Project: auto-rollcall-thu-tronclass", text)
+        self.assertIn("Project: tron-roll-call-hero", text)
         self.assertIn("project version", text)
 
     def test_release_check_cli_json_dispatches(self) -> None:

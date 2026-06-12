@@ -4,8 +4,8 @@ import unittest
 import aiohttp
 from yarl import URL
 
-from troTHU import tron
-from troTHU.providers import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.providers import (
     DEFAULT_PROVIDER,
     get_provider,
     list_all_providers,
@@ -15,7 +15,7 @@ from troTHU.providers import (
     provider_registry_config,
     tronclass_api_endpoints,
 )
-from troTHU.research_mode import normalize_research_mode_config
+from tron_roll_call_hero.research_mode import normalize_research_mode_config
 from tests.fake_tron_server import FakeTronServer
 
 

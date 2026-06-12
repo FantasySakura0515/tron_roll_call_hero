@@ -47,7 +47,7 @@
 
 ## 全程守則
 
-- [x] 新核心模組不 import `troTHU.runtime_context`（account_models / account_registry / account_state_repository，AST 測試驗證）
+- [x] 新核心模組不 import `tron_roll_call_hero.runtime_context`（account_models / account_registry / account_state_repository，AST 測試驗證）
 - [ ] 並行路徑不呼叫 `switch_profile`（並行路徑尚未建立）
 - [ ] 並行路徑不讀寫全域 active provider（並行路徑尚未建立）
 - [ ] 每個 account event 都有 `profile` 與 `provider_key`（event 系統 Phase 2.3）
@@ -80,7 +80,7 @@
 
 ### 1.1 Account models
 
-- [x] 新增 `troTHU/account_models.py`
+- [x] 新增 `tron_roll_call_hero/account_models.py`
 - [x] 定義 `AccountSpec`
 - [x] 定義 `CredentialRef` / `CredentialSource`
 - [x] 定義 `AccountConfig`
@@ -107,7 +107,7 @@ refactor: add account runtime domain models
 
 ### 1.2 Account registry
 
-- [x] 新增 `troTHU/account_registry.py`
+- [x] 新增 `tron_roll_call_hero/account_registry.py`
 - [x] 從 normalized config 建立 `AccountSpec`
 - [x] 單帳號 target resolution
 - [x] 空白 now 單帳號推斷
@@ -136,7 +136,7 @@ refactor: resolve monitor targets into account specs
 
 ### 1.3 Per-account repository
 
-- [x] 新增 `troTHU/account_state_repository.py`
+- [x] 新增 `tron_roll_call_hero/account_state_repository.py`
 - [x] 定義 repository Protocol
 - [x] 實作 file repository
 - [x] runtime path：`state/accounts/<profile>/runtime.json`
@@ -177,8 +177,8 @@ Phase 1 驗收：
 
 ### 2.1 Runtime services 與 context
 
-- [x] 新增 `troTHU/runtime_services.py`
-- [x] 新增 `troTHU/account_context.py`
+- [x] 新增 `tron_roll_call_hero/runtime_services.py`
+- [x] 新增 `tron_roll_call_hero/account_context.py`
 - [x] 定義 `CredentialResolver`
 - [x] 定義 `CookieRepository`
 - [x] 定義 `RuntimeEventSink`
@@ -269,7 +269,7 @@ refactor: scope polling and progress to account state
 
 ### 2.5 Number
 
-- [x] 拆出 `NumberCodeResolver`（`troTHU/number_account.py`）
+- [x] 拆出 `NumberCodeResolver`（`tron_roll_call_hero/number_account.py`）
 - [x] 拆出 `NumberSubmissionExecutor`
 - [x] direct lookup 接受 account context
 - [x] brute force 接受 account context
@@ -293,7 +293,7 @@ refactor: split number resolution from account submission
 
 ### 2.6 Radar
 
-- [x] `answer_radar_rollcall(account, rollcall)`（`troTHU/radar_account.py`）
+- [x] `answer_radar_rollcall(account, rollcall)`（`tron_roll_call_hero/radar_account.py`）
 - [x] empty answer 使用 account endpoints/session
 - [x] global solver 使用 account config
 - [x] fallback 使用 account state
@@ -316,7 +316,7 @@ refactor: scope radar execution to account context
 
 ### 2.7 QR student path
 
-- [x] manual payload submit 接受 account context（`troTHU/qr_account.py`）
+- [x] manual payload submit 接受 account context（`tron_roll_call_hero/qr_account.py`）
 - [x] `finalize_qr_submission` 寫 account state（account 路徑由 `submit_qr_payload_account` 內 verify + completed 寫入取代）
 - [x] pending QR 以 profile/provider 記錄（`pending_qr` 既有 key；account 路徑只清自己的 profile/provider）
 - [x] clipboard 路徑只作用於指定 account（clipboard 解碼為純 I/O；提交一律走指定 account 的 `submit_qr_payload_account`，worker 接線於 2.8）
@@ -338,7 +338,7 @@ refactor: scope student QR execution to account context
 
 ### 2.8 AccountWorker 單帳號接線
 
-- [x] 新增 `troTHU/account_worker.py`
+- [x] 新增 `tron_roll_call_hero/account_worker.py`
 - [x] worker 建立/關閉 session
 - [x] worker login/retry state machine
 - [x] worker schedule loop
@@ -374,7 +374,7 @@ Phase 2 驗收：
 
 ### 3.1 Supervisor 基礎
 
-- [x] 新增 `troTHU/account_supervisor.py`
+- [x] 新增 `tron_roll_call_hero/account_supervisor.py`
 - [x] worker task registry
 - [x] start all desired specs
 - [x] isolated stop
@@ -419,7 +419,7 @@ test: model multiple authenticated students in fake server
 
 ### 3.3 Number artifact coordinator
 
-- [x] 新增 `troTHU/rollcall_artifact_coordinator.py`
+- [x] 新增 `tron_roll_call_hero/rollcall_artifact_coordinator.py`
 - [x] key 為 provider + rollcall ID
 - [x] direct code cache（`CoordinatedNumberCodeResolver` 可直接作為 `answer_number_rollcall` 的 resolver）
 - [x] brute-force single-flight（暴力猜碼成功後 publish，其他帳號單發提交）
@@ -477,7 +477,7 @@ Phase 3 驗收：
 
 ### 4.1 Manual QR fan-out
 
-- [x] QR payload 解析一次（`troTHU/qr_fanout.py`，parsed 後分送 `submit_parsed_qr_account`）
+- [x] QR payload 解析一次（`tron_roll_call_hero/qr_fanout.py`，parsed 後分送 `submit_parsed_qr_account`）
 - [x] 路由到 matching active workers
 - [x] 每 worker 自己 submit/verify
 - [x] 回傳 `GroupSubmissionResult`
@@ -499,7 +499,7 @@ feat: submit manual QR through account workers
 
 ### 4.2 Teacher QR coordinator
 
-- [x] 新增 `troTHU/teacher_qr_coordinator.py`
+- [x] 新增 `tron_roll_call_hero/teacher_qr_coordinator.py`
 - [x] teacher session ownership（coordinator 擁有獨立 teacher session）
 - [x] teacher login retry（失敗回報 `teacher_not_ready`，下次 assist 重試；unauthorized 清 login 狀態）
 - [x] course resolution（config course_id 或 fetch_my_courses 第一筆）
@@ -589,7 +589,7 @@ Phase 4 驗收：
 - [x] LINE webhook adapter 接 live supervisor（`tron bot serve --supervisor` 啟動 in-process monitor + webhook server）
 - [x] 兩平台指令集一致（同一 `adapter_bridge` command mapping + `BotRuntime` 分派，bridge 與平台無關）
 - [x] LINE tunnel 啟動方式文件化並提供啟動指令（[bot-setup.md](bot-setup.md)：Cloudflare Tunnel / ngrok + webhook 設定）
-- [x] `start/stop` 真正控制 worker（`troTHU/bot_supervisor_bridge.py`；BotRuntime 新增 start/stop handler hooks）
+- [x] `start/stop` 真正控制 worker（`tron_roll_call_hero/bot_supervisor_bridge.py`；BotRuntime 新增 start/stop handler hooks）
 - [x] `force` 路由 live worker（`AccountWorker.force_check()`）
 - [x] `reauth` 只重登指定 account（`AccountWorker.request_reauth()` 只清自己 cookie jar）
 - [x] `qr all` 路由 supervisor（經 `qr_fanout`）

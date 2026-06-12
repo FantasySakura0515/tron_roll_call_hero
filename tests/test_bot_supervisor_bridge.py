@@ -7,13 +7,13 @@ import unittest
 import uuid
 from pathlib import Path
 
-from troTHU import tron
-from troTHU import tron_http
-from troTHU.adapter_bridge import binding_key
-from troTHU.application_runtime import MonitorApplication
-from troTHU.bot_runtime import BotRuntime
-from troTHU.bot_supervisor_bridge import create_supervisor_bot_handlers
-from troTHU.runtime_services import CollectingEventSink
+from tron_roll_call_hero import tron
+from tron_roll_call_hero import tron_http
+from tron_roll_call_hero.adapter_bridge import binding_key
+from tron_roll_call_hero.application_runtime import MonitorApplication
+from tron_roll_call_hero.bot_runtime import BotRuntime
+from tron_roll_call_hero.bot_supervisor_bridge import create_supervisor_bot_handlers
+from tron_roll_call_hero.runtime_services import CollectingEventSink
 from tests.fake_tron_server import FakeTronServer
 
 
@@ -199,7 +199,7 @@ class BotSupervisorBridgeTest(unittest.IsolatedAsyncioTestCase):
 
 class SupervisedBotRuntimeFactoryTest(unittest.IsolatedAsyncioTestCase):
     async def test_factory_builds_connected_app_and_runtime(self) -> None:
-        from troTHU.bot_supervisor_bridge import create_supervised_bot_runtime
+        from tron_roll_call_hero.bot_supervisor_bridge import create_supervised_bot_runtime
 
         base = make_temp()
         fake = await FakeTronServer(credentials={"user1": "pass1", "user2": "pass2"}).start()
@@ -244,7 +244,7 @@ class AdapterSupervisorE2ETest(BotSupervisorBridgeTest):
 
         from aiohttp import web
 
-        from troTHU.adapter_server import create_app
+        from tron_roll_call_hero.adapter_server import create_app
 
         self._env_patch = patch.dict(
             "os.environ", {"TEST_BRIDGE_DISCORD_PUBLIC_KEY": "test-public-key"}, clear=False
@@ -358,7 +358,7 @@ class DecouplingTest(unittest.TestCase):
         import ast
         import inspect
 
-        import troTHU.bot_supervisor_bridge as module
+        import tron_roll_call_hero.bot_supervisor_bridge as module
 
         source = inspect.getsource(module)
         self.assertNotIn("switch_profile", source)

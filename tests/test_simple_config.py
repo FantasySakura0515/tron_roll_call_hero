@@ -1,7 +1,7 @@
 import copy
 import unittest
 
-from troTHU import tron
+from tron_roll_call_hero import tron
 
 
 SAMPLE = """now:class A

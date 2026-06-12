@@ -243,8 +243,8 @@ group-level. One account's success must not suppress another account's result.
 The public CLI remains compatible:
 
 ```text
-python -m troTHU.tron
-python -m troTHU.tron run --no-input
+python -m tron_roll_call_hero.tron
+python -m tron_roll_call_hero.tron run --no-input
 ```
 
 Single-account behavior remains the first migration target and must continue to

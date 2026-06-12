@@ -12,8 +12,8 @@ except (ImportError, ModuleNotFoundError):
     aiohttp = None
     web = None
 
-from troTHU import tron, tron_http
-from troTHU.course_discovery import (
+from tron_roll_call_hero import tron, tron_http
+from tron_roll_call_hero.course_discovery import (
     CourseDiscoveryError,
     discover_courses,
     parse_courses,

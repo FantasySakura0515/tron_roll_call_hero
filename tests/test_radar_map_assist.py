@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from troTHU import tron
-from troTHU.radar_map_assist import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.radar_map_assist import (
     build_radar_map_assist,
     format_radar_map_assist_summary,
     validate_radar_point,

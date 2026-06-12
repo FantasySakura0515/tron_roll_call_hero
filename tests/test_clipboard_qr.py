@@ -4,9 +4,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from troTHU import tron
-import troTHU.rollcall_runtime as rollcall_runtime
-from troTHU.clipboard_qr import looks_like_qr_payload, read_clipboard_qr_payload
+from tron_roll_call_hero import tron
+import tron_roll_call_hero.rollcall_runtime as rollcall_runtime
+from tron_roll_call_hero.clipboard_qr import looks_like_qr_payload, read_clipboard_qr_payload
 
 
 SAMPLE_PAYLOAD = "/j?p=0~3kpc!3~1776047549bca3f13fa87900ab6dab90f500aa1ffe!4~7v6l"

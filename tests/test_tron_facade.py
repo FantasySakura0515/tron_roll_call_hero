@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from troTHU import (
+from tron_roll_call_hero import (
     auth_runtime,
     config_runtime,
     monitor_runtime,
@@ -69,13 +69,13 @@ class TronFacadeTests(unittest.TestCase):
             self.assertIn("pending_qr", report)
 
     def test_tron_py_is_thin_facade_file(self) -> None:
-        facade_path = Path(__file__).resolve().parents[1] / "troTHU" / "tron.py"
+        facade_path = Path(__file__).resolve().parents[1] / "tron_roll_call_hero" / "tron.py"
         self.assertLessEqual(len(facade_path.read_text(encoding="utf-8").splitlines()), 60)
 
     def test_legacy_impl_module_is_removed(self) -> None:
-        package_dir = Path(__file__).resolve().parents[1] / "troTHU"
+        package_dir = Path(__file__).resolve().parents[1] / "tron_roll_call_hero"
         legacy_filename = "_" + "tron_impl.py"
-        legacy_module = "troTHU." + "_" + "tron_impl"
+        legacy_module = "tron_roll_call_hero." + "_" + "tron_impl"
         self.assertFalse((package_dir / legacy_filename).exists())
         self.assertNotIn(legacy_module, sys.modules)
 

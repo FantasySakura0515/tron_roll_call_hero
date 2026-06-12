@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from troTHU import tron
+from tron_roll_call_hero import tron
 
 
 class QrImageDecodeTest(unittest.TestCase):

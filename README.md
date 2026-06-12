@@ -30,7 +30,7 @@
 
 1. 到 Releases 下載 `THU_Auto_Rollcall-v1.3-alpha.1-windows-x64.zip`。
 2. **整包解壓縮**到一個固定資料夾（不要在 zip 裡直接雙擊）。
-3. 進到資料夾，執行 `auto-rollcall-thu-tronclass.exe`。
+3. 進到資料夾，執行 `tron-roll-call-hero.exe`。
 
 第一次啟動會在 exe 旁邊自動建立 `config.yaml`、`state/`、`log/` 三樣東西。程式一啟動就直接進入監控；**按任意鍵**就會用記事本打開 `config.yaml` 讓你填帳號密碼，存檔關掉記事本後它會自動重新讀取設定。
 
@@ -40,7 +40,7 @@
 
 ```bash
 python -m pip install -r requirements.txt
-python -m troTHU.tron
+python -m tron_roll_call_hero.tron
 ```
 
 就這樣。一樣是啟動即監控、按任意鍵用記事本開 `config.yaml`。
@@ -48,7 +48,7 @@ python -m troTHU.tron
 如果你要放在工作排程器或背景服務、不希望它監聽按鍵：
 
 ```bash
-python -m troTHU.tron run --no-input
+python -m tron_roll_call_hero.tron run --no-input
 ```
 
 > 啟動後它**不會清螢幕、不會跳全螢幕介面**，只會在視窗裡一行一行印出目前在做什麼（正在登入、目前時段、偵測到點名、簽到成功…），讓你一眼看出它還活著。
@@ -135,10 +135,10 @@ operating:
 ### 常用設定指令
 
 ```bash
-python -m troTHU.tron config show       # 看目前讀到的設定
-python -m troTHU.tron config doctor      # 檢查設定有沒有問題
-python -m troTHU.tron config advanced    # 用記事本打開 config.advanced.yaml
-python -m troTHU.tron config compact --write   # 把舊版設定檔整理成新版兩檔（會先自動備份）
+python -m tron_roll_call_hero.tron config show       # 看目前讀到的設定
+python -m tron_roll_call_hero.tron config doctor      # 檢查設定有沒有問題
+python -m tron_roll_call_hero.tron config advanced    # 用記事本打開 config.advanced.yaml
+python -m tron_roll_call_hero.tron config compact --write   # 把舊版設定檔整理成新版兩檔（會先自動備份）
 ```
 
 `config.advanced.yaml` 是真正的 YAML，放時區、number/radar 細部調整、Bot 設定等。例如：
@@ -159,9 +159,9 @@ time:
 推薦用 **HTTP Interactions**（不用一直掛著連線，部署最省事）：
 
 ```bash
-python -m troTHU.tron bot discord-schema --json      # 看要註冊哪些指令
-python -m troTHU.tron bot discord-sync --dry-run --json
-python -m troTHU.tron bot serve --adapter discord    # 本機起服務
+python -m tron_roll_call_hero.tron bot discord-schema --json      # 看要註冊哪些指令
+python -m tron_roll_call_hero.tron bot discord-sync --dry-run --json
+python -m tron_roll_call_hero.tron bot serve --adapter discord    # 本機起服務
 ```
 
 也保留了選用的 Gateway 模式，但不是預設推薦的部署方式。
@@ -180,13 +180,13 @@ LINE_CHANNEL_SECRET
 目前是**單向通知**（程式 → 你），把結果推給你看；不提供從 Telegram 反向下指令。綁定方式：
 
 ```bash
-python -m troTHU.tron account bind telegram <你的 TELEGRAM_CHAT_ID> default
+python -m tron_roll_call_hero.tron account bind telegram <你的 TELEGRAM_CHAT_ID> default
 ```
 
 ### 想先在本機試 webhook？
 
 ```bash
-python -m troTHU.tron bot serve --adapter generic
+python -m tron_roll_call_hero.tron bot serve --adapter generic
 ```
 
 送個最簡單的測試請求：
@@ -201,9 +201,9 @@ python -m troTHU.tron bot serve --adapter generic
 
 - **多帳號 / 群組**：一份設定管多個學號，用 `now` 一鍵切換（見上面 config 教學）。
 - **時區排程**：`config.advanced.yaml` 裡可設 IANA 時區（如 `Asia/Taipei`），每天可有多個時段。
-- **本機唯讀面板**：`python -m troTHU.tron app serve --open` 會在 localhost 開一個唯讀的小面板，只能「看」狀態（不會送點名、不會匯入 cookie、不會改帳號）。
-- **環境自我檢查**：`python -m troTHU.tron doctor` 一鍵檢查環境、設定、登入來源是否正常。
-- **狀態快照**：`python -m troTHU.tron status --json` 印出目前本機狀態。
+- **本機唯讀面板**：`python -m tron_roll_call_hero.tron app serve --open` 會在 localhost 開一個唯讀的小面板，只能「看」狀態（不會送點名、不會匯入 cookie、不會改帳號）。
+- **環境自我檢查**：`python -m tron_roll_call_hero.tron doctor` 一鍵檢查環境、設定、登入來源是否正常。
+- **狀態快照**：`python -m tron_roll_call_hero.tron status --json` 印出目前本機狀態。
 
 ---
 
@@ -215,7 +215,7 @@ python -m troTHU.tron bot serve --adapter generic
 
 預設情況下，程式偵測到點名後**不會立刻送出**，而是先回查這堂課的簽到率，等到「全班到課率達 15%」（已經有 15% 的同學簽到）才出手。這是一道刻意設計的容錯保險：萬一老師只是手滑誤開、開了又馬上關掉，這種根本沒人簽的「假點名」就不會把你簽進去；等到班上開始有人陸續簽到、確認是真的在點名了，程式才動作。數字 / 雷達 / QR 三種都適用（QR 會在等待期間先用教師帳號把點名預備好，門檻一過立刻送出）。
 
-如果你不想要這道保險、希望一偵測到就立刻簽到，到 `config.advanced.yaml` 把 `monitor.ignore_attendance_rate_gate` 設成 `true` 即可（開發 / 排程場景也可以用 `python -m troTHU.tron run --ignore-attendance-rate-gate` 臨時關閉這一輪）。
+如果你不想要這道保險、希望一偵測到就立刻簽到，到 `config.advanced.yaml` 把 `monitor.ignore_attendance_rate_gate` 設成 `true` 即可（開發 / 排程場景也可以用 `python -m tron_roll_call_hero.tron run --ignore-attendance-rate-gate` 臨時關閉這一輪）。
 
 ### 數字點名：點名碼其實藏在 API 回應裡
 
@@ -287,7 +287,7 @@ PUT {base}/api/rollcall/{rollcall_id}/answer?api_version=1.76
 GET {base}/api/rollcall/{rollcall_id}/lite   # 取得 beacon / 訊號等附帶資訊
 ```
 
-備援解法把「距離」當觀測量，用穩健最小平方法在 WGS84 上做多點定位反推教室座標，再不行則以無限棋盤格逐格覆蓋。雷達策略鏈為 **`empty_answer → global_wgs84`**（由 `config.advanced.yaml` 的 `radar.strategy` 選擇，預設 `empty_answer`）；全球定位求解器在 `troTHU/global_radar_solver.py`，是零數學套件依賴的純 Python 實作。
+備援解法把「距離」當觀測量，用穩健最小平方法在 WGS84 上做多點定位反推教室座標，再不行則以無限棋盤格逐格覆蓋。雷達策略鏈為 **`empty_answer → global_wgs84`**（由 `config.advanced.yaml` 的 `radar.strategy` 選擇，預設 `empty_answer`）；全球定位求解器在 `tron_roll_call_hero/global_radar_solver.py`，是零數學套件依賴的純 Python 實作。
 
 ### QR 點名（教師輔助取得 data）
 
@@ -312,12 +312,12 @@ PUT {teacher_base}/api/rollcall/{teacher_rollcall_id}/stop_qr_rollcall
 
 ### 程式結構速覽
 
-- `troTHU/runtime_context.py`：中央樞紐，持有全域執行狀態，並把扁平的函式命名空間懶載入到各模組。新增要能用 `ctx.foo` 呼叫的函式時，要在這裡的 `_LEGACY_EXPORTS` 註冊。
-- `troTHU/monitor_runtime.py`：預設的監控主迴圈（登入 → 依排程 → 偵測點名 → 分流）。
-- `troTHU/number_runtime.py`、`troTHU/radar_runtime.py`：兩種點名的實作核心（上面的 API 就在這裡）；雷達的全球定位求解器另放在 `troTHU/global_radar_solver.py`（純 Python WGS84 多點定位）。
-- `troTHU/qr_runtime.py`、`troTHU/qr_teacher_runtime.py`：QR 手動 / 剪貼簿送出與教師帳號輔助流程。
-- `troTHU/providers.py`：支援的學校登錄表（base URL、登入流程、能力旗標），加新學校從這裡開始。
-- `troTHU/tron_http.py`：端點驅動的 HTTP client 與登入流程（THU CAS / TKU SSO / 公有雲 email 登入）。
+- `tron_roll_call_hero/runtime_context.py`：中央樞紐，持有全域執行狀態，並把扁平的函式命名空間懶載入到各模組。新增要能用 `ctx.foo` 呼叫的函式時，要在這裡的 `_LEGACY_EXPORTS` 註冊。
+- `tron_roll_call_hero/monitor_runtime.py`：預設的監控主迴圈（登入 → 依排程 → 偵測點名 → 分流）。
+- `tron_roll_call_hero/number_runtime.py`、`tron_roll_call_hero/radar_runtime.py`：兩種點名的實作核心（上面的 API 就在這裡）；雷達的全球定位求解器另放在 `tron_roll_call_hero/global_radar_solver.py`（純 Python WGS84 多點定位）。
+- `tron_roll_call_hero/qr_runtime.py`、`tron_roll_call_hero/qr_teacher_runtime.py`：QR 手動 / 剪貼簿送出與教師帳號輔助流程。
+- `tron_roll_call_hero/providers.py`：支援的學校登錄表（base URL、登入流程、能力旗標），加新學校從這裡開始。
+- `tron_roll_call_hero/tron_http.py`：端點驅動的 HTTP client 與登入流程（THU CAS / TKU SSO / 公有雲 email 登入）。
 
 ### 安裝選用功能（原始碼）
 
@@ -334,9 +334,9 @@ python -m pip install -e .[keyring]     # 用系統金鑰圈存帳密
 測試全部離線執行（用假的 TronClass 伺服器模擬），不會碰到任何真實學校：
 
 ```bash
-python -m py_compile troTHU/tron.py troTHU/runtime_context.py troTHU/cli_main.py
+python -m py_compile tron_roll_call_hero/tron.py tron_roll_call_hero/runtime_context.py tron_roll_call_hero/cli_main.py
 python -m unittest discover -v
-python -m troTHU.tron release-build --dry-run --json
+python -m tron_roll_call_hero.tron release-build --dry-run --json
 ```
 
 ---

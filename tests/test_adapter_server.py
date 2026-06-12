@@ -10,11 +10,11 @@ except (ImportError, ModuleNotFoundError):
     aiohttp = None
     web = None
 
-from troTHU import tron
-from troTHU.adapter_bridge import binding_key
-from troTHU.adapter_server import calculate_line_signature, create_app
-from troTHU.bot_runtime import BotRuntime, BotRuntimeHandlers
-from troTHU.line_adapter import LineDeliveryError
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.adapter_bridge import binding_key
+from tron_roll_call_hero.adapter_server import calculate_line_signature, create_app
+from tron_roll_call_hero.bot_runtime import BotRuntime, BotRuntimeHandlers
+from tron_roll_call_hero.line_adapter import LineDeliveryError
 
 
 def make_config():

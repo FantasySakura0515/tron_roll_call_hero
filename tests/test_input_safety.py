@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from troTHU.input_safety import masked_password_input, sanitize_config_values, sanitize_input_field
+from tron_roll_call_hero.input_safety import masked_password_input, sanitize_config_values, sanitize_input_field
 
 
 class InputSafetyTest(unittest.TestCase):
@@ -67,7 +67,7 @@ class InputSafetyTest(unittest.TestCase):
                 events.append("exit")
 
         with (
-            patch("troTHU.input_safety._optional_status_line_pause", return_value=FakePause()),
+            patch("tron_roll_call_hero.input_safety._optional_status_line_pause", return_value=FakePause()),
             patch("sys.platform", "unknown-test-os"),
             patch("builtins.input", return_value=" secret "),
         ):

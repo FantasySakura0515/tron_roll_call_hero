@@ -7,8 +7,8 @@ except (ImportError, ModuleNotFoundError):
     aiohttp = None
     web = None
 
-from troTHU import tron
-from troTHU.teacher_rollcall import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.teacher_rollcall import (
     build_teacher_rollcall_payload,
     normalize_rollcall_kind,
     teacher_stop_path,

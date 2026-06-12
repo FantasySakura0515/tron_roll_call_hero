@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from troTHU.observability import (
+from tron_roll_call_hero.observability import (
     build_observability_snapshot,
     classify_recent_events,
     format_dashboard_snapshot,

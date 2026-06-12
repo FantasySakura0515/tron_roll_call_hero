@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from troTHU.account_store import cookie_path
-from troTHU.webview_sync import (
+from tron_roll_call_hero.account_store import cookie_path
+from tron_roll_call_hero.webview_sync import (
     WebViewSyncError,
     build_webview_cookie_preview,
     build_webview_sync_status,

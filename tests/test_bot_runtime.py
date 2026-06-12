@@ -4,10 +4,10 @@ import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-from troTHU import tron
-from troTHU.account_runtime_store import load_runtime_state
-from troTHU.adapter_bridge import ControlCommand, binding_key, map_adapter_command
-from troTHU.bot_runtime import BotRuntime, BotRuntimeHandlers
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.account_runtime_store import load_runtime_state
+from tron_roll_call_hero.adapter_bridge import ControlCommand, binding_key, map_adapter_command
+from tron_roll_call_hero.bot_runtime import BotRuntime, BotRuntimeHandlers
 
 
 TEST_WORKSPACE_DIR = Path(__file__).resolve().parents[1]

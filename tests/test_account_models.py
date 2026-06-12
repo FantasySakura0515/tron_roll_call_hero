@@ -1,6 +1,6 @@
 """Unit tests for the pure multi-account domain models (Phase 1.1).
 
-These models must stay decoupled from troTHU.runtime_context and must never
+These models must stay decoupled from tron_roll_call_hero.runtime_context and must never
 carry cleartext passwords, cookies, or QR data.
 """
 
@@ -8,7 +8,7 @@ import dataclasses
 import json
 import unittest
 
-from troTHU.account_models import (
+from tron_roll_call_hero.account_models import (
     AccountConfig,
     AccountRuntimeState,
     AccountSpec,
@@ -286,7 +286,7 @@ class DecouplingTest(unittest.TestCase):
         import ast
         import inspect
 
-        import troTHU.account_models as models
+        import tron_roll_call_hero.account_models as models
 
         tree = ast.parse(inspect.getsource(models))
         imported: list = []

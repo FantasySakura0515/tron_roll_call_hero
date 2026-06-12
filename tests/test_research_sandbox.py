@@ -11,8 +11,8 @@ from unittest.mock import patch
 
 import aiohttp
 
-from troTHU import tron
-from troTHU.research_sandbox import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.research_sandbox import (
     ResearchCaptureError,
     ResearchGateError,
     append_research_capture,
@@ -199,7 +199,7 @@ class ResearchCliTest(unittest.TestCase):
         outputs = []
         with (
             patch.object(tron, "bootstrap_config"),
-            patch("troTHU.research_sandbox.importlib.util.find_spec", return_value=None),
+            patch("tron_roll_call_hero.research_sandbox.importlib.util.find_spec", return_value=None),
             patch("builtins.print", side_effect=outputs.append),
         ):
             result = tron.main(["research", "browser-check", "--json"])

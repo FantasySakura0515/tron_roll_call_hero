@@ -3,8 +3,8 @@
 import asyncio
 import unittest
 
-from troTHU.account_models import AccountSpec, AccountWorkerSnapshot, CredentialRef, CredentialSource
-from troTHU.account_supervisor import AccountSupervisor
+from tron_roll_call_hero.account_models import AccountSpec, AccountWorkerSnapshot, CredentialRef, CredentialSource
+from tron_roll_call_hero.account_supervisor import AccountSupervisor
 
 
 def make_spec(profile: str) -> AccountSpec:
@@ -145,7 +145,7 @@ class DecouplingTest(unittest.TestCase):
         import ast
         import inspect
 
-        import troTHU.account_supervisor as module
+        import tron_roll_call_hero.account_supervisor as module
 
         tree = ast.parse(inspect.getsource(module))
         imported: list = []

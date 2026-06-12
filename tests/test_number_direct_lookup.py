@@ -4,7 +4,7 @@ import unittest.mock
 
 import aiohttp
 
-from troTHU import tron
+from tron_roll_call_hero import tron
 from tests.fake_tron_server import FakeTronServer
 
 

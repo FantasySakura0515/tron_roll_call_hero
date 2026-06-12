@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from troTHU.app_qr_experience import (
+from tron_roll_call_hero.app_qr_experience import (
     build_qr_scan_view_state,
     format_qr_scan_status,
     sanitize_qr_scan_result,

@@ -13,11 +13,11 @@ except (ImportError, ModuleNotFoundError):
     aiohttp = None
     web = None
 
-from troTHU import tron
-from troTHU.adapter_bridge import map_adapter_command
-from troTHU.local_scanner import create_scanner_app
-from troTHU.pending_qr import add_pending_qr, list_pending_qr, match_pending_qr, remove_pending_qr
-from troTHU.ux_tools import export_debug_bundle, tail_log_records
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.adapter_bridge import map_adapter_command
+from tron_roll_call_hero.local_scanner import create_scanner_app
+from tron_roll_call_hero.pending_qr import add_pending_qr, list_pending_qr, match_pending_qr, remove_pending_qr
+from tron_roll_call_hero.ux_tools import export_debug_bundle, tail_log_records
 
 
 class UxPhaseUtilityTest(unittest.TestCase):

@@ -4,9 +4,9 @@ from pathlib import Path
 from urllib.parse import quote
 from unittest.mock import AsyncMock, MagicMock
 
-from troTHU import tron
-from troTHU.tron_http import UnauthorizedError, UnexpectedResponseError
-from troTHU.qr_rollcall import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.tron_http import UnauthorizedError, UnexpectedResponseError
+from tron_roll_call_hero.qr_rollcall import (
     FALSE_TOKEN,
     NUMBER_PREFIX,
     TRUE_TOKEN,

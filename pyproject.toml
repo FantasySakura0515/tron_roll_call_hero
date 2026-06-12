@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "auto-rollcall-thu-tronclass"
+name = "tron-roll-call-hero"
 version = "1.3a1"
 description = "THU TronClass auto rollcall helper"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-  { name = "troTHU contributors" },
+  { name = "tron_roll_call_hero contributors" },
 ]
 keywords = ["tronclass", "ilearn", "thu", "rollcall", "attendance"]
 classifiers = [
@@ -40,14 +40,14 @@ browser = ["playwright>=1.44"]
 dev = ["PyInstaller>=6", "keyring>=24"]
 
 [project.urls]
-Homepage = "https://github.com/hot-YUser/auto-rollcall-thu-tronclass"
-Repository = "https://github.com/hot-YUser/auto-rollcall-thu-tronclass"
-Issues = "https://github.com/hot-YUser/auto-rollcall-thu-tronclass/issues"
+Homepage = "https://github.com/hot-YUser/tron-roll-call-hero"
+Repository = "https://github.com/hot-YUser/tron-roll-call-hero"
+Issues = "https://github.com/hot-YUser/tron-roll-call-hero/issues"
 
 [project.scripts]
-trothu = "troTHU.tron:main"
-auto-rollcall-thu-tronclass = "troTHU.tron:main"
+trothu = "tron_roll_call_hero.tron:main"
+tron-roll-call-hero = "tron_roll_call_hero.tron:main"
 
 [tool.setuptools]
-packages = ["troTHU"]
+packages = ["tron_roll_call_hero"]
 include-package-data = false

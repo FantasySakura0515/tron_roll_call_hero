@@ -2,8 +2,8 @@ import json
 import unittest
 from unittest.mock import patch
 
-from troTHU.adapter_bridge import binding_key
-from troTHU.discord_adapter import (
+from tron_roll_call_hero.adapter_bridge import binding_key
+from tron_roll_call_hero.discord_adapter import (
     DISCORD_API_BASE,
     DiscordDeliveryError,
     DiscordSignatureError,
@@ -19,7 +19,7 @@ from troTHU.discord_adapter import (
     sync_discord_command_schema,
     verify_discord_signature,
 )
-from troTHU.rollcall_models import (
+from tron_roll_call_hero.rollcall_models import (
     AdapterTarget,
     AttendanceType,
     NotificationEventType,

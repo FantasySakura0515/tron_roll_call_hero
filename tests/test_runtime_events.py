@@ -3,7 +3,7 @@
 import json
 import unittest
 
-from troTHU.runtime_events import RuntimeEvent, account_event, group_event
+from tron_roll_call_hero.runtime_events import RuntimeEvent, account_event, group_event
 
 
 class AccountEventTest(unittest.TestCase):

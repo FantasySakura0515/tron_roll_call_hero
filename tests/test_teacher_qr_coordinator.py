@@ -9,10 +9,10 @@ from pathlib import Path
 
 import aiohttp
 
-from troTHU import tron
-from troTHU import tron_http
-from troTHU.account_context import AccountContext
-from troTHU.account_models import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero import tron_http
+from tron_roll_call_hero.account_context import AccountContext
+from tron_roll_call_hero.account_models import (
     AccountConfig,
     AccountRuntimeState,
     AccountSpec,
@@ -20,15 +20,15 @@ from troTHU.account_models import (
     CredentialSource,
     SubmissionStatus,
 )
-from troTHU.account_state_repository import FileAccountStateRepository
-from troTHU.auth_account import login_account
-from troTHU.runtime_services import (
+from tron_roll_call_hero.account_state_repository import FileAccountStateRepository
+from tron_roll_call_hero.auth_account import login_account
+from tron_roll_call_hero.runtime_services import (
     CollectingEventSink,
     CredentialResolver,
     FixedClock,
     RuntimeServices,
 )
-from troTHU.teacher_qr_coordinator import TeacherQrCoordinator
+from tron_roll_call_hero.teacher_qr_coordinator import TeacherQrCoordinator
 from tests.fake_tron_server import FakeTronServer
 
 
@@ -198,7 +198,7 @@ class DecouplingTest(unittest.TestCase):
         import ast
         import inspect
 
-        import troTHU.teacher_qr_coordinator as module
+        import tron_roll_call_hero.teacher_qr_coordinator as module
 
         tree = ast.parse(inspect.getsource(module))
         imported: list = []

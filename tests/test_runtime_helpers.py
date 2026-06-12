@@ -3,7 +3,7 @@ import json
 import time
 import unittest
 
-from troTHU import runtime_helpers
+from tron_roll_call_hero import runtime_helpers
 
 
 class RuntimeHelpersTest(unittest.TestCase):

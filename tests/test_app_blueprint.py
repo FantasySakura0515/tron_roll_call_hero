@@ -2,7 +2,7 @@ import copy
 import json
 import unittest
 
-from troTHU.app_blueprint import (
+from tron_roll_call_hero.app_blueprint import (
     REQUIRED_ENDPOINT_IDS,
     REQUIRED_SCREEN_IDS,
     build_app_blueprint,

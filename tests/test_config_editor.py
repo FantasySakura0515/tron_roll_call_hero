@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from troTHU import tron
-from troTHU.config_editor import LEGACY_NOTEPAD_PATH
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.config_editor import LEGACY_NOTEPAD_PATH
 
 
 class ConfigEditorTest(unittest.TestCase):

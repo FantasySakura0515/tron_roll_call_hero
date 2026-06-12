@@ -3,7 +3,7 @@ import json
 import unittest
 from datetime import timedelta, time
 
-from troTHU import tron
+from tron_roll_call_hero import tron
 
 
 class TimezoneScheduleTest(unittest.TestCase):

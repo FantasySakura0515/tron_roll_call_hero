@@ -12,8 +12,8 @@ except (ImportError, ModuleNotFoundError):
     aiohttp = None
     web = None
 
-from troTHU import tron
-from troTHU import qr_teacher_runtime
+from tron_roll_call_hero import tron
+from tron_roll_call_hero import qr_teacher_runtime
 from tests.fake_tron_server import FakeTronServer
 
 

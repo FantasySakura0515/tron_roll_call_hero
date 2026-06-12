@@ -2,7 +2,7 @@ import itertools
 import math
 import unittest
 
-from troTHU.radar_solver import (
+from tron_roll_call_hero.radar_solver import (
     DEFAULT_BOUNDARY_POINTS,
     DistanceObservation,
     GeoPoint,

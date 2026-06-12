@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from troTHU import tron
-from troTHU.config_view import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.config_view import (
     build_user_config,
     config_doctor_report,
     config_view_summary,

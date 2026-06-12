@@ -1,6 +1,6 @@
 import unittest
 
-from troTHU.rollcall_models import (
+from tron_roll_call_hero.rollcall_models import (
     AdapterTarget,
     AttendanceType,
     NotificationEventType,

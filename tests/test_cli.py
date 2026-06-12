@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from troTHU import tron
-from troTHU.release_checklist import EXPECTED_WINDOWS_ZIP
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.release_checklist import EXPECTED_WINDOWS_ZIP
 
 
 class TronCliSmokeTest(unittest.TestCase):
@@ -486,8 +486,8 @@ class TronBotServeCommandTest(unittest.IsolatedAsyncioTestCase):
             tron.CONFIG.update(tron.normalize_config({"integrations": {"line": {}}}))
             with (
                 patch.dict("os.environ", {"LINE_CHANNEL_ACCESS_TOKEN": "line-token"}, clear=False),
-                patch("troTHU.adapter_server.run_adapter_server", new=fake_run_adapter_server),
-                patch("troTHU.bot_handlers.create_bot_runtime", return_value=object()),
+                patch("tron_roll_call_hero.adapter_server.run_adapter_server", new=fake_run_adapter_server),
+                patch("tron_roll_call_hero.bot_handlers.create_bot_runtime", return_value=object()),
                 patch("builtins.print"),
             ):
                 result = await tron.bot_serve_command(
@@ -516,8 +516,8 @@ class TronBotServeCommandTest(unittest.IsolatedAsyncioTestCase):
             tron.CONFIG.update(tron.normalize_config({"integrations": {"discord": {}}}))
             with (
                 patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "discord-token"}, clear=False),
-                patch("troTHU.adapter_server.run_adapter_server", new=fake_run_adapter_server),
-                patch("troTHU.bot_handlers.create_bot_runtime", return_value=object()),
+                patch("tron_roll_call_hero.adapter_server.run_adapter_server", new=fake_run_adapter_server),
+                patch("tron_roll_call_hero.bot_handlers.create_bot_runtime", return_value=object()),
                 patch("builtins.print"),
             ):
                 result = await tron.bot_serve_command(
@@ -546,8 +546,8 @@ class TronBotServeCommandTest(unittest.IsolatedAsyncioTestCase):
             tron.CONFIG.update(tron.normalize_config({"integrations": {"telegram": {}}}))
             with (
                 patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "telegram-token"}, clear=False),
-                patch("troTHU.adapter_server.run_adapter_server", new=fake_run_adapter_server),
-                patch("troTHU.bot_handlers.create_bot_runtime", return_value=object()),
+                patch("tron_roll_call_hero.adapter_server.run_adapter_server", new=fake_run_adapter_server),
+                patch("tron_roll_call_hero.bot_handlers.create_bot_runtime", return_value=object()),
                 patch("builtins.print"),
             ):
                 result = await tron.bot_serve_command(

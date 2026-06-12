@@ -8,7 +8,7 @@ except (ImportError, ModuleNotFoundError):
     web = None
 
 from tests.fake_tron_server import FakeTronServer
-from troTHU import tron_http
+from tron_roll_call_hero import tron_http
 
 
 @unittest.skipUnless(aiohttp is not None and web is not None, "aiohttp.web is required")

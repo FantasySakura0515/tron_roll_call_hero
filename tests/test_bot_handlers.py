@@ -14,12 +14,12 @@ except (ImportError, ModuleNotFoundError):
     web = None
 
 from tests.fake_tron_server import FakeTronServer
-from troTHU import tron
-from troTHU.account_runtime_store import load_runtime_state
-from troTHU.account_store import cookie_path
-from troTHU.adapter_bridge import binding_key
-from troTHU.bot_handlers import create_bot_runtime
-from troTHU.pending_qr import add_pending_qr, list_pending_qr
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.account_runtime_store import load_runtime_state
+from tron_roll_call_hero.account_store import cookie_path
+from tron_roll_call_hero.adapter_bridge import binding_key
+from tron_roll_call_hero.bot_handlers import create_bot_runtime
+from tron_roll_call_hero.pending_qr import add_pending_qr, list_pending_qr
 
 
 TEST_WORKSPACE_DIR = Path(__file__).resolve().parents[1]

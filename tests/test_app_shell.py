@@ -9,8 +9,8 @@ except (ImportError, ModuleNotFoundError):
     aiohttp = None
     web = None
 
-from troTHU import tron
-from troTHU.app_shell import create_app_shell
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.app_shell import create_app_shell
 
 
 def make_config():

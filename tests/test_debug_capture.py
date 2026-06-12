@@ -4,7 +4,7 @@ import unittest
 import uuid
 from pathlib import Path
 
-from troTHU.debug_capture import append_debug_capture, sanitize_debug_payload
+from tron_roll_call_hero.debug_capture import append_debug_capture, sanitize_debug_payload
 
 
 TEST_WORKSPACE_DIR = Path(__file__).resolve().parents[1]

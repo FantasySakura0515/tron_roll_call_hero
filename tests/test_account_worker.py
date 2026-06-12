@@ -8,12 +8,12 @@ from pathlib import Path
 
 import aiohttp
 
-from troTHU import tron
-from troTHU import tron_http
-from troTHU.account_models import AccountSpec, CredentialRef, CredentialSource
-from troTHU.account_state_repository import FileAccountStateRepository
-from troTHU.account_worker import AccountWorker
-from troTHU.runtime_services import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero import tron_http
+from tron_roll_call_hero.account_models import AccountSpec, CredentialRef, CredentialSource
+from tron_roll_call_hero.account_state_repository import FileAccountStateRepository
+from tron_roll_call_hero.account_worker import AccountWorker
+from tron_roll_call_hero.runtime_services import (
     CollectingEventSink,
     CredentialResolver,
     FixedClock,
@@ -163,7 +163,7 @@ class DecouplingTest(unittest.TestCase):
         import ast
         import inspect
 
-        import troTHU.account_worker as module
+        import tron_roll_call_hero.account_worker as module
 
         tree = ast.parse(inspect.getsource(module))
         imported: list = []

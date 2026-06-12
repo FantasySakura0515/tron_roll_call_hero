@@ -12,9 +12,9 @@ import unittest
 import uuid
 from pathlib import Path
 
-from troTHU import account_runtime_store as legacy_runtime
-from troTHU.account_models import AccountStateSnapshot
-from troTHU.account_state_repository import (
+from tron_roll_call_hero import account_runtime_store as legacy_runtime
+from tron_roll_call_hero.account_models import AccountStateSnapshot
+from tron_roll_call_hero.account_state_repository import (
     AccountStateRepository,
     FileAccountStateRepository,
 )
@@ -184,7 +184,7 @@ class DecouplingTest(RepositoryTestBase):
         import ast
         import inspect
 
-        import troTHU.account_state_repository as repo_module
+        import tron_roll_call_hero.account_state_repository as repo_module
 
         tree = ast.parse(inspect.getsource(repo_module))
         imported: list = []

@@ -1,15 +1,15 @@
 import unittest
 
-from troTHU import tron
-from troTHU.adapter_bridge import binding_key
-from troTHU.notification_bus import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.adapter_bridge import binding_key
+from tron_roll_call_hero.notification_bus import (
     build_notification_targets,
     dispatch_notification_event,
 )
-from troTHU.discord_adapter import create_discord_notification_sink
-from troTHU.line_adapter import create_line_notification_sink
-from troTHU.telegram_adapter import create_telegram_notification_sink
-from troTHU.rollcall_models import AttendanceType, NotificationEvent
+from tron_roll_call_hero.discord_adapter import create_discord_notification_sink
+from tron_roll_call_hero.line_adapter import create_line_notification_sink
+from tron_roll_call_hero.telegram_adapter import create_telegram_notification_sink
+from tron_roll_call_hero.rollcall_models import AttendanceType, NotificationEvent
 
 
 def make_config():

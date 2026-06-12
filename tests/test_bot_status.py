@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from troTHU.bot_status import (
+from tron_roll_call_hero.bot_status import (
     MAX_ACCOUNTS_IN_REPLY,
     build_profile_status_summary,
     format_accounts_reply,

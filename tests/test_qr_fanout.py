@@ -7,12 +7,12 @@ import unittest
 import uuid
 from pathlib import Path
 
-from troTHU import tron
-from troTHU import tron_http
-from troTHU.account_models import SubmissionStatus
-from troTHU.application_runtime import MonitorApplication
-from troTHU.qr_fanout import submit_group_qr_payload
-from troTHU.runtime_services import CollectingEventSink
+from tron_roll_call_hero import tron
+from tron_roll_call_hero import tron_http
+from tron_roll_call_hero.account_models import SubmissionStatus
+from tron_roll_call_hero.application_runtime import MonitorApplication
+from tron_roll_call_hero.qr_fanout import submit_group_qr_payload
+from tron_roll_call_hero.runtime_services import CollectingEventSink
 from tests.fake_tron_server import FakeTronServer
 
 

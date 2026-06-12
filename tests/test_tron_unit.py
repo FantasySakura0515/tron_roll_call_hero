@@ -58,9 +58,9 @@ except ModuleNotFoundError:
     fake_yaml.safe_dump = safe_dump
     sys.modules["yaml"] = fake_yaml
 
-from troTHU import tron, tron_http
-from troTHU.account_runtime_store import mark_bot_state, mark_check_result, mark_monitor_state, runtime_state_path
-from troTHU.pending_qr import add_pending_qr
+from tron_roll_call_hero import tron, tron_http
+from tron_roll_call_hero.account_runtime_store import mark_bot_state, mark_check_result, mark_monitor_state, runtime_state_path
+from tron_roll_call_hero.pending_qr import add_pending_qr
 
 TEST_WORKSPACE_DIR = Path(__file__).resolve().parents[1]
 

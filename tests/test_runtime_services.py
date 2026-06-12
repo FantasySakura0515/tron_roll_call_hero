@@ -7,15 +7,15 @@ collaborators so tests can swap in memory fakes.
 
 import unittest
 
-from troTHU import tron
-from troTHU.account_models import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.account_models import (
     AccountSpec,
     CredentialRef,
     CredentialSource,
     ScheduleSpec,
 )
-from troTHU.account_state_repository import FileAccountStateRepository
-from troTHU.runtime_services import (
+from tron_roll_call_hero.account_state_repository import FileAccountStateRepository
+from tron_roll_call_hero.runtime_services import (
     CollectingEventSink,
     CookieRepository,
     CredentialResolver,

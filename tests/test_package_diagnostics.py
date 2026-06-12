@@ -9,8 +9,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     tomllib = None
 
-from troTHU import tron
-from troTHU.package_diagnostics import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.package_diagnostics import (
     PROJECT_VERSION,
     build_package_diagnostic_report,
     discover_hidden_import_gaps,
@@ -24,41 +24,41 @@ class PackageDiagnosticsTest(unittest.TestCase):
         data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
         project = data["project"]
 
-        self.assertEqual(project["name"], "auto-rollcall-thu-tronclass")
+        self.assertEqual(project["name"], "tron-roll-call-hero")
         self.assertEqual(project["version"], PROJECT_VERSION)
-        self.assertEqual(project["scripts"]["trothu"], "troTHU.tron:main")
-        self.assertEqual(project["scripts"]["auto-rollcall-thu-tronclass"], "troTHU.tron:main")
+        self.assertEqual(project["scripts"]["trothu"], "tron_roll_call_hero.tron:main")
+        self.assertEqual(project["scripts"]["tron-roll-call-hero"], "tron_roll_call_hero.tron:main")
         self.assertIn("aiohttp>=3.9.5", project["dependencies"])
         self.assertNotIn("textual>=8.2.0", project["dependencies"])
 
     def test_pyinstaller_spec_excludes_local_secrets_and_tracks_hidden_imports(self) -> None:
         report = validate_pyinstaller_spec(
-            Path("auto-rollcall-thu-tronclass.spec"),
-            package_dir=Path("troTHU"),
+            Path("tron-roll-call-hero.spec"),
+            package_dir=Path("tron_roll_call_hero"),
         )
 
         self.assertTrue(report["exists"])
         self.assertEqual(report["forbidden_datas"], [])
         self.assertIn("tests", report["excludes"])
-        self.assertIn("troTHU.app_blueprint", report["hidden_imports"])
-        self.assertIn("troTHU.app_qr_experience", report["hidden_imports"])
-        self.assertIn("troTHU.app_shell", report["hidden_imports"])
-        self.assertIn("troTHU.app_shell_dashboard", report["hidden_imports"])
-        self.assertIn("troTHU.app_shell_polish", report["hidden_imports"])
-        self.assertIn("troTHU.discord_gateway", report["hidden_imports"])
-        self.assertIn("troTHU.global_radar_solver", report["hidden_imports"])
-        self.assertIn("troTHU.radar_map_assist", report["hidden_imports"])
-        self.assertIn("troTHU.telegram_adapter", report["hidden_imports"])
-        self.assertIn("troTHU.simple_config", report["hidden_imports"])
-        self.assertIn("troTHU.config_editor", report["hidden_imports"])
-        self.assertIn("troTHU.cli_teacher", report["hidden_imports"])
-        self.assertIn("troTHU.group_runtime", report["hidden_imports"])
-        self.assertIn("troTHU.package_diagnostics", report["hidden_imports"])
-        self.assertIn("troTHU.release_builder", report["hidden_imports"])
-        self.assertIn("troTHU.release_checklist", report["hidden_imports"])
-        self.assertIn("troTHU.teacher_rollcall", report["hidden_imports"])
-        self.assertIn("troTHU.qr_teacher_runtime", report["hidden_imports"])
-        self.assertIn("troTHU.webview_sync", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.app_blueprint", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.app_qr_experience", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.app_shell", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.app_shell_dashboard", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.app_shell_polish", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.discord_gateway", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.global_radar_solver", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.radar_map_assist", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.telegram_adapter", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.simple_config", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.config_editor", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.cli_teacher", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.group_runtime", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.package_diagnostics", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.release_builder", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.release_checklist", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.teacher_rollcall", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.qr_teacher_runtime", report["hidden_imports"])
+        self.assertIn("tron_roll_call_hero.webview_sync", report["hidden_imports"])
         self.assertIn("playwright", report["excludes"])
         self.assertIn("keyring", report["excludes"])
         self.assertIn("cv2", report["excludes"])
@@ -66,27 +66,27 @@ class PackageDiagnosticsTest(unittest.TestCase):
         self.assertEqual(report["hidden_import_gaps"], [])
 
     def test_hidden_import_gap_detection_reports_missing_runtime_module(self) -> None:
-        gaps = discover_hidden_import_gaps(Path("troTHU"), hidden_imports=["troTHU.account_store"])
+        gaps = discover_hidden_import_gaps(Path("tron_roll_call_hero"), hidden_imports=["tron_roll_call_hero.account_store"])
 
-        self.assertIn("troTHU.app_blueprint", gaps)
-        self.assertIn("troTHU.app_qr_experience", gaps)
-        self.assertIn("troTHU.app_shell", gaps)
-        self.assertIn("troTHU.app_shell_dashboard", gaps)
-        self.assertIn("troTHU.app_shell_polish", gaps)
-        self.assertIn("troTHU.discord_gateway", gaps)
-        self.assertIn("troTHU.global_radar_solver", gaps)
-        self.assertIn("troTHU.radar_map_assist", gaps)
-        self.assertIn("troTHU.telegram_adapter", gaps)
-        self.assertIn("troTHU.simple_config", gaps)
-        self.assertIn("troTHU.config_editor", gaps)
-        self.assertIn("troTHU.cli_teacher", gaps)
-        self.assertIn("troTHU.group_runtime", gaps)
-        self.assertIn("troTHU.package_diagnostics", gaps)
-        self.assertIn("troTHU.release_builder", gaps)
-        self.assertIn("troTHU.release_checklist", gaps)
-        self.assertIn("troTHU.teacher_rollcall", gaps)
-        self.assertIn("troTHU.qr_teacher_runtime", gaps)
-        self.assertIn("troTHU.webview_sync", gaps)
+        self.assertIn("tron_roll_call_hero.app_blueprint", gaps)
+        self.assertIn("tron_roll_call_hero.app_qr_experience", gaps)
+        self.assertIn("tron_roll_call_hero.app_shell", gaps)
+        self.assertIn("tron_roll_call_hero.app_shell_dashboard", gaps)
+        self.assertIn("tron_roll_call_hero.app_shell_polish", gaps)
+        self.assertIn("tron_roll_call_hero.discord_gateway", gaps)
+        self.assertIn("tron_roll_call_hero.global_radar_solver", gaps)
+        self.assertIn("tron_roll_call_hero.radar_map_assist", gaps)
+        self.assertIn("tron_roll_call_hero.telegram_adapter", gaps)
+        self.assertIn("tron_roll_call_hero.simple_config", gaps)
+        self.assertIn("tron_roll_call_hero.config_editor", gaps)
+        self.assertIn("tron_roll_call_hero.cli_teacher", gaps)
+        self.assertIn("tron_roll_call_hero.group_runtime", gaps)
+        self.assertIn("tron_roll_call_hero.package_diagnostics", gaps)
+        self.assertIn("tron_roll_call_hero.release_builder", gaps)
+        self.assertIn("tron_roll_call_hero.release_checklist", gaps)
+        self.assertIn("tron_roll_call_hero.teacher_rollcall", gaps)
+        self.assertIn("tron_roll_call_hero.qr_teacher_runtime", gaps)
+        self.assertIn("tron_roll_call_hero.webview_sync", gaps)
 
     def test_package_report_is_safe_and_non_secret(self) -> None:
         report = build_package_diagnostic_report(Path("."), config=tron.CONFIG)
@@ -105,7 +105,7 @@ class PackageDiagnosticsTest(unittest.TestCase):
 
     def test_missing_spec_reports_fail_without_exposing_local_state(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            report = validate_pyinstaller_spec(Path(temp_dir) / "missing.spec", package_dir=Path("troTHU"))
+            report = validate_pyinstaller_spec(Path(temp_dir) / "missing.spec", package_dir=Path("tron_roll_call_hero"))
 
         encoded = json.dumps(report, ensure_ascii=False)
         self.assertFalse(report["exists"])

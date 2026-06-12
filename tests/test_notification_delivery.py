@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 
-from troTHU.notification_delivery import (
+from tron_roll_call_hero.notification_delivery import (
     NotificationRequest,
     NotificationSendError,
     build_notification_requests,

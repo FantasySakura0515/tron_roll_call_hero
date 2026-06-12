@@ -45,7 +45,7 @@ config-legacy-backup-*.yaml
 config-broken-*.yaml
 
 # Local release/build artifacts. Rebuild with:
-#   python -m troTHU.tron release-build --execute --json
+#   python -m tron_roll_call_hero.tron release-build --execute --json
 build/
 dist/
 *.spec.tmp

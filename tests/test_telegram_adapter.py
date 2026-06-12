@@ -1,14 +1,14 @@
 import unittest
 from unittest.mock import patch
 
-from troTHU.adapter_bridge import binding_key
-from troTHU.rollcall_models import (
+from tron_roll_call_hero.adapter_bridge import binding_key
+from tron_roll_call_hero.rollcall_models import (
     AdapterTarget,
     AttendanceType,
     NotificationEventType,
     OutboundEvent,
 )
-from troTHU.telegram_adapter import (
+from tron_roll_call_hero.telegram_adapter import (
     TELEGRAM_API_BASE,
     TelegramDeliveryError,
     build_telegram_text_message,

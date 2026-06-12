@@ -8,9 +8,9 @@ password into a spec or resolution result, and must not import runtime_context.
 import json
 import unittest
 
-from troTHU import tron
-from troTHU.account_models import CredentialSource
-from troTHU.account_registry import AccountRegistry, SkippedAccount, TargetResolution
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.account_models import CredentialSource
+from tron_roll_call_hero.account_registry import AccountRegistry, SkippedAccount, TargetResolution
 
 
 def make_config(simple: dict) -> dict:
@@ -317,7 +317,7 @@ class SafetyTest(unittest.TestCase):
         import ast
         import inspect
 
-        import troTHU.account_registry as registry_module
+        import tron_roll_call_hero.account_registry as registry_module
 
         tree = ast.parse(inspect.getsource(registry_module))
         imported: list = []

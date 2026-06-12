@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from troTHU import tron
-from troTHU.app_shell_polish import (
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.app_shell_polish import (
     build_shell_action_catalog,
     build_shell_drilldown,
     build_shell_ui_model,

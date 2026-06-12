@@ -193,50 +193,6 @@ wheels = [
 ]
 
 [[package]]
-name = "auto-rollcall-thu-tronclass"
-version = "1.3a1"
-source = { editable = "." }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "pynacl" },
-    { name = "pyyaml" },
-]
-
-[package.optional-dependencies]
-browser = [
-    { name = "playwright" },
-]
-dev = [
-    { name = "keyring" },
-    { name = "pyinstaller" },
-]
-keyring = [
-    { name = "keyring" },
-]
-packaging = [
-    { name = "pyinstaller" },
-]
-qr-image = [
-    { name = "opencv-python-headless" },
-    { name = "pillow" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.9.5" },
-    { name = "keyring", marker = "extra == 'dev'", specifier = ">=24" },
-    { name = "keyring", marker = "extra == 'keyring'", specifier = ">=24" },
-    { name = "opencv-python-headless", marker = "extra == 'qr-image'", specifier = ">=4.9" },
-    { name = "pillow", marker = "extra == 'qr-image'", specifier = ">=10" },
-    { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.44" },
-    { name = "pyinstaller", marker = "extra == 'dev'", specifier = ">=6" },
-    { name = "pyinstaller", marker = "extra == 'packaging'", specifier = ">=6" },
-    { name = "pynacl", specifier = ">=1.5.0" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
-]
-provides-extras = ["keyring", "packaging", "qr-image", "browser", "dev"]
-
-[[package]]
 name = "backports-tarfile"
 version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1445,6 +1401,50 @@ sdist = { url = "https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl", hash = "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb", size = 1006223, upload-time = "2026-03-09T12:47:15.026Z" },
 ]
+
+[[package]]
+name = "tron-roll-call-hero"
+version = "1.3a1"
+source = { editable = "." }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "pynacl" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+browser = [
+    { name = "playwright" },
+]
+dev = [
+    { name = "keyring" },
+    { name = "pyinstaller" },
+]
+keyring = [
+    { name = "keyring" },
+]
+packaging = [
+    { name = "pyinstaller" },
+]
+qr-image = [
+    { name = "opencv-python-headless" },
+    { name = "pillow" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.9.5" },
+    { name = "keyring", marker = "extra == 'dev'", specifier = ">=24" },
+    { name = "keyring", marker = "extra == 'keyring'", specifier = ">=24" },
+    { name = "opencv-python-headless", marker = "extra == 'qr-image'", specifier = ">=4.9" },
+    { name = "pillow", marker = "extra == 'qr-image'", specifier = ">=10" },
+    { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.44" },
+    { name = "pyinstaller", marker = "extra == 'dev'", specifier = ">=6" },
+    { name = "pyinstaller", marker = "extra == 'packaging'", specifier = ">=6" },
+    { name = "pynacl", specifier = ">=1.5.0" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+]
+provides-extras = ["keyring", "packaging", "qr-image", "browser", "dev"]
 
 [[package]]
 name = "typing-extensions"

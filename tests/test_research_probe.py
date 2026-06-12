@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import aiohttp
 
-from troTHU import tron
-from troTHU.research_sandbox import capture_rollcall_probe, capture_student_rollcalls_probe
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.research_sandbox import capture_rollcall_probe, capture_student_rollcalls_probe
 from tests.fake_tron_server import FakeTronServer
 
 

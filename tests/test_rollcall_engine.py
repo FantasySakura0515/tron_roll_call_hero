@@ -1,8 +1,8 @@
 import unittest
 
-from troTHU import tron
-from troTHU.rollcall_engine import classify_rollcall, decide_rollcall, select_rollcall
-from troTHU.rollcall_models import AttendanceType, RollcallAction
+from tron_roll_call_hero import tron
+from tron_roll_call_hero.rollcall_engine import classify_rollcall, decide_rollcall, select_rollcall
+from tron_roll_call_hero.rollcall_models import AttendanceType, RollcallAction
 
 
 class RollcallEngineTest(unittest.TestCase):

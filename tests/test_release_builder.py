@@ -5,9 +5,9 @@ import unittest.mock
 import zipfile
 from pathlib import Path
 
-from troTHU.package_diagnostics import PROJECT_NAME
-from troTHU.release_checklist import EXPECTED_WINDOWS_ZIP
-from troTHU.release_builder import (
+from tron_roll_call_hero.package_diagnostics import PROJECT_NAME
+from tron_roll_call_hero.release_checklist import EXPECTED_WINDOWS_ZIP
+from tron_roll_call_hero.release_builder import (
     RELEASE_NOTES_FILE,
     ReleaseBuildError,
     build_release_build_preflight,
@@ -20,9 +20,9 @@ class ReleaseBuilderTest(unittest.TestCase):
     def _prepare_base(self, root: Path) -> None:
         (root / "README.md").write_text("# Test README\n", encoding="utf-8")
         (root / RELEASE_NOTES_FILE).write_text("# Test Release Notes\n\nShip this note.\n", encoding="utf-8")
-        (root / "auto-rollcall-thu-tronclass.spec").write_text("# spec\n", encoding="utf-8")
-        (root / "troTHU").mkdir()
-        (root / "troTHU" / "__init__.py").write_text("", encoding="utf-8")
+        (root / "tron-roll-call-hero.spec").write_text("# spec\n", encoding="utf-8")
+        (root / "tron_roll_call_hero").mkdir()
+        (root / "tron_roll_call_hero" / "__init__.py").write_text("", encoding="utf-8")
 
     def _fake_runner(self, base: Path, *, fail_step: str = ""):
         calls = []
@@ -41,7 +41,7 @@ class ReleaseBuilderTest(unittest.TestCase):
                 (collect / "_internal" / "library.txt").write_text("placeholder", encoding="utf-8")
             stdout = "{}"
             if step == "smoke_help":
-                stdout = "usage: auto-rollcall-thu-tronclass"
+                stdout = "usage: tron-roll-call-hero"
             return {"returncode": 0, "stdout": stdout, "stderr": "", "duration_seconds": 0.01}
 
         runner.calls = calls
@@ -114,7 +114,7 @@ class ReleaseBuilderTest(unittest.TestCase):
                 )
 
     def test_pipeline_fails_when_pyinstaller_is_unavailable(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir, unittest.mock.patch("troTHU.release_builder._module_available", return_value=False):
+        with tempfile.TemporaryDirectory() as temp_dir, unittest.mock.patch("tron_roll_call_hero.release_builder._module_available", return_value=False):
             base = Path(temp_dir)
             self._prepare_base(base)
             report = run_release_build_pipeline(base, execute=True)

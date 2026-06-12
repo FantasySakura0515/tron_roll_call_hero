@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import aiohttp
 
-from troTHU.rollcall_progress import fetch_rollcall_progress, report_rollcall_progress, summarize_rollcall_progress, verify_rollcall_on_call_fine
+from tron_roll_call_hero.rollcall_progress import fetch_rollcall_progress, report_rollcall_progress, summarize_rollcall_progress, verify_rollcall_on_call_fine
 from tests.fake_tron_server import FakeTronServer
 
 
@@ -125,12 +125,12 @@ class FetchProgressTest(unittest.IsolatedAsyncioTestCase):
             "confirmed_present": True,
         }
         with (
-            patch("troTHU.rollcall_progress.fetch_rollcall_progress", AsyncMock(return_value=progress)),
-            patch("troTHU.rollcall_progress.ctx.get_active_profile", return_value=SimpleNamespace(name="user1")),
-            patch("troTHU.rollcall_progress.ctx.get_active_http_endpoints", return_value=SimpleNamespace(base_url="https://example.test")),
-            patch("troTHU.rollcall_progress.ctx.get_ssl_request_setting", return_value=None),
-            patch("troTHU.rollcall_progress.ctx.log_print") as log_print,
-            patch("troTHU.rollcall_progress.ctx.log"),
+            patch("tron_roll_call_hero.rollcall_progress.fetch_rollcall_progress", AsyncMock(return_value=progress)),
+            patch("tron_roll_call_hero.rollcall_progress.ctx.get_active_profile", return_value=SimpleNamespace(name="user1")),
+            patch("tron_roll_call_hero.rollcall_progress.ctx.get_active_http_endpoints", return_value=SimpleNamespace(base_url="https://example.test")),
+            patch("tron_roll_call_hero.rollcall_progress.ctx.get_ssl_request_setting", return_value=None),
+            patch("tron_roll_call_hero.rollcall_progress.ctx.log_print") as log_print,
+            patch("tron_roll_call_hero.rollcall_progress.ctx.log"),
         ):
             summary = await report_rollcall_progress(object(), "77")
 
@@ -164,7 +164,7 @@ class FetchProgressTest(unittest.IsolatedAsyncioTestCase):
             ]
             async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
                 await server.login_session(session)
-                with patch("troTHU.rollcall_progress.ctx.get_active_profile", return_value=SimpleNamespace(name="user1")):
+                with patch("tron_roll_call_hero.rollcall_progress.ctx.get_active_profile", return_value=SimpleNamespace(name="user1")):
                     verification = await verify_rollcall_on_call_fine(
                         session,
                         "77",

@@ -6,10 +6,10 @@ import unittest
 import uuid
 from pathlib import Path
 
-from troTHU import tron
-from troTHU import tron_http
-from troTHU.application_runtime import MonitorApplication
-from troTHU.runtime_services import CollectingEventSink
+from tron_roll_call_hero import tron
+from tron_roll_call_hero import tron_http
+from tron_roll_call_hero.application_runtime import MonitorApplication
+from tron_roll_call_hero.runtime_services import CollectingEventSink
 from tests.fake_tron_server import FakeTronServer
 
 

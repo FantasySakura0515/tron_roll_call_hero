@@ -21,7 +21,7 @@ class ReadmeUsageTest(unittest.TestCase):
     def test_getting_started_is_minimal(self) -> None:
         self.assertIn("## 怎麼開始用", self.text)
         self.assertIn("pip install -r requirements.txt", self.text)
-        self.assertIn("python -m troTHU.tron", self.text)
+        self.assertIn("python -m tron_roll_call_hero.tron", self.text)
         self.assertIn("run --no-input", self.text)
         self.assertIn("按任意鍵", self.text)
 

@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from troTHU import radar_rollcall, runtime_helpers
-from troTHU.radar_solver import GeoPoint
+from tron_roll_call_hero import radar_rollcall, runtime_helpers
+from tron_roll_call_hero.radar_solver import GeoPoint
 
 
 class RadarRollcallTest(unittest.TestCase):

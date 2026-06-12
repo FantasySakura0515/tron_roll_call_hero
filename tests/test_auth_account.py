@@ -12,20 +12,20 @@ from pathlib import Path
 
 import aiohttp
 
-from troTHU import providers
-from troTHU import tron
-from troTHU import tron_http
-from troTHU.account_context import AccountContext
-from troTHU.account_models import (
+from tron_roll_call_hero import providers
+from tron_roll_call_hero import tron
+from tron_roll_call_hero import tron_http
+from tron_roll_call_hero.account_context import AccountContext
+from tron_roll_call_hero.account_models import (
     AccountConfig,
     AccountRuntimeState,
     AccountSpec,
     CredentialRef,
     CredentialSource,
 )
-from troTHU.account_state_repository import FileAccountStateRepository
-from troTHU.auth_account import login_account
-from troTHU.runtime_services import (
+from tron_roll_call_hero.account_state_repository import FileAccountStateRepository
+from tron_roll_call_hero.auth_account import login_account
+from tron_roll_call_hero.runtime_services import (
     CollectingEventSink,
     CredentialResolver,
     FixedClock,
@@ -117,7 +117,7 @@ class AuthAccountTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.repo.load_cookies("alpha"), [])
 
     async def test_login_emits_runtime_event(self) -> None:
-        from troTHU.runtime_events import RuntimeEvent
+        from tron_roll_call_hero.runtime_events import RuntimeEvent
 
         config = make_config([{"user": "user1", "passwd": "pass1", "school": "thu"}])
         spec = make_spec("alpha", "user1", "thu")
