@@ -257,17 +257,9 @@ class FakeTronServer:
         if scripted is not None:
             return scripted
         if self.captcha_login:
-            captcha_html = """
-            <html>
-              <form class="form-horizontal" action="/submit">
-                <input type="hidden" name="execution" value="abc123">
-                <input type="text" name="username" value="">
-                <input type="password" name="password" value="">
-                <input type="text" name="captcha" value="">
-              </form>
-            </html>
-            """
-            return web.Response(text=captcha_html, content_type="text/html")
+            return web.Response(
+                text=self._captcha_login_form(), content_type="text/html"
+            )
         html = """
         <html>
           <form class="form-horizontal" action="/submit">
@@ -284,6 +276,28 @@ class FakeTronServer:
             body=b"\xff\xd8\xff\xe0fakejpeg\xff\xd9", content_type="image/jpeg"
         )
 
+    def _captcha_login_form(self, error_html: str = "") -> str:
+        # Mirror the real FJU CAS page: the captcha label ("驗證碼:") is always
+        # present, so error detection must not key on it alone.
+        return """
+        <html>
+          <form class="form-horizontal" action="/submit">
+            {error}
+            <input type="hidden" name="execution" value="abc123">
+            <input type="text" name="username" value="">
+            <input type="password" name="password" value="">
+            <label for="captcha">驗證碼:</label>
+            <input type="text" name="captcha" value="">
+          </form>
+        </html>
+        """.format(error=error_html)
+
+    def _captcha_error_page(self) -> str:
+        return self._captcha_login_form('<div id="msg" class="errors">驗證碼不正確</div>')
+
+    def _credential_error_page(self) -> str:
+        return self._captcha_login_form('<div id="msg" class="errors">帳號或密碼錯誤</div>')
+
     async def submit_login(self, request):
         scripted = self._script_response("submit_login")
         if scripted is not None:
@@ -293,9 +307,13 @@ class FakeTronServer:
         if self.captcha_login:
             if self.captcha_wrong_remaining > 0:
                 self.captcha_wrong_remaining -= 1
-                return web.Response(text="captcha incorrect 驗證碼錯誤", status=200)
+                return web.Response(text=self._captcha_error_page(), status=200)
             if str(data.get("captcha") or "") != self.captcha_answer:
-                return web.Response(text="captcha incorrect 驗證碼錯誤", status=200)
+                return web.Response(text=self._captcha_error_page(), status=200)
+            if user in self.fail_login_users or self.credentials.get(user) != data.get("password"):
+                # CAS re-renders the whole form (captcha label included) on a
+                # credential rejection, but without the captcha-error message.
+                return web.Response(text=self._credential_error_page(), status=200)
         if user in self.fail_login_users or self.credentials.get(user) != data.get("password"):
             return web.Response(text="bad credentials", status=200)
 

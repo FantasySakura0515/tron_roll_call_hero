@@ -155,8 +155,21 @@ class BuiltinLoginResult:
     reason: str  # "success" | "captcha_error" | "rejected"
 
 
+# Field names to fill. Loose is fine: an empty captcha-named field is the slot.
 CAPTCHA_FIELD_HINTS = ("captcha", "validate", "verifycode", "vcode")
-CAPTCHA_ERROR_HINTS = ("captcha", "驗證碼", "verification code", "validate code", "驗證")
+# Error markers must be CAPTCHA-SPECIFIC phrases, not the bare word "captcha":
+# the FJU CAS login page renders a "驗證碼:" label and a captcha id on EVERY
+# response, so a wrong-password re-render also contains "captcha"/"驗證碼". Only
+# the explicit "captcha incorrect" message ("驗證碼不正確") distinguishes a
+# captcha error from a credential rejection. (Confirmed against the real page.)
+CAPTCHA_ERROR_HINTS = (
+    "驗證碼不正確",
+    "驗證碼錯誤",
+    "captcha incorrect",
+    "incorrect captcha",
+    "invalid captcha",
+    "captcha is incorrect",
+)
 
 
 @dataclass(frozen=True)

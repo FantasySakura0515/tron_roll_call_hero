@@ -241,3 +241,15 @@ class FakeCaptchaLoginTest(unittest.IsolatedAsyncioTestCase):
             )
             self.assertEqual(ok.reason, "success")
             self.assertTrue(ok.has_session)
+
+    async def test_wrong_password_page_with_captcha_label_is_rejected_not_captcha(self) -> None:
+        # Regression: the real FJU CAS page renders the "驗證碼:" captcha label on
+        # every response, including a wrong-password re-render. Classification must
+        # key on the captcha-error phrase, not the ever-present label.
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            client = self.fake.client(session)
+            form = await client.fetch_login_form()
+            result = await client.submit_builtin_form_login(
+                form, "user1", "wrong-password", captcha_field="captcha", captcha_answer="abcd"
+            )
+        self.assertEqual(result.reason, "rejected")
