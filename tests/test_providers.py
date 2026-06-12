@@ -38,20 +38,20 @@ class ProviderConfigTest(unittest.TestCase):
         self.assertEqual(get_provider("www.tronclass.com.tw").key, "tronclass")
         self.assertEqual(get_provider("not-a-provider").key, DEFAULT_PROVIDER)
 
-    def test_registry_keeps_fju_hidden_and_tku_tronclass_visible(self) -> None:
+    def test_registry_marks_fju_visible_with_captcha_flow(self) -> None:
         registry = provider_registry_config()
 
         self.assertEqual(registry["current"], "thu")
         self.assertFalse(registry["allow_experimental"])
         self.assertTrue(registry["available"]["thu"]["ready"])
         self.assertTrue(registry["available"]["fju"]["ready"])
-        self.assertFalse(registry["available"]["fju"]["user_visible"])
+        self.assertTrue(registry["available"]["fju"]["user_visible"])
         self.assertTrue(registry["available"]["tku"]["ready"])
         self.assertTrue(registry["available"]["tku"]["user_visible"])
         self.assertTrue(registry["available"]["tronclass"]["ready"])
         self.assertTrue(registry["available"]["tronclass"]["user_visible"])
         self.assertEqual(registry["available"]["fju"]["support_level"], "ready")
-        self.assertEqual(registry["available"]["fju"]["auth_flow"], "manual_cookie_only")
+        self.assertEqual(registry["available"]["fju"]["auth_flow"], "tronclass_form_captcha")
         self.assertTrue(registry["available"]["fju"]["capabilities"]["radar"])
         self.assertEqual(registry["available"]["tku"]["support_level"], "ready")
         self.assertEqual(registry["available"]["tku"]["base_url"], "https://iclass.tku.edu.tw")
@@ -61,10 +61,10 @@ class ProviderConfigTest(unittest.TestCase):
         self.assertEqual(registry["available"]["tronclass"]["auth_flow"], "public_cloud_email")
         self.assertTrue(registry["available"]["tronclass"]["capabilities"]["course_discovery"])
 
-    def test_supported_provider_registry_hides_fju_by_default(self) -> None:
+    def test_supported_provider_registry_includes_fju(self) -> None:
         self.assertEqual(
             [provider.key for provider in list_supported_providers()],
-            ["thu", "tku", "tronclass"],
+            ["fju", "thu", "tku", "tronclass"],
         )
         self.assertEqual(
             [provider.key for provider in list_supported_providers(include_hidden=True)],
@@ -125,7 +125,7 @@ class ProviderConfigTest(unittest.TestCase):
 
         self.assertEqual(blocked["support_level"], "ready")
         self.assertTrue(blocked["daily_ready"])
-        self.assertFalse(blocked["user_visible"])
+        self.assertTrue(blocked["user_visible"])
         self.assertTrue(blocked["capabilities"]["radar"])
         self.assertTrue(allowed["daily_ready"])
         self.assertTrue(allowed["endpoint_configured"]["base_url"])

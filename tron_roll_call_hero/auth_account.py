@@ -27,13 +27,14 @@ from typing import Any, List, Mapping, Tuple
 
 from tron_roll_call_hero import providers
 from tron_roll_call_hero.account_context import AccountContext
-from tron_roll_call_hero.account_models import LoginState
+from tron_roll_call_hero.account_models import CredentialSource, LoginState
 from tron_roll_call_hero.runtime_events import account_event
 from tron_roll_call_hero.tron_http import (
     LoginPageChangedError,
     LoginRejectedError,
     TronHttpClient,
     TronHttpError,
+    detect_captcha_field,
     has_session_cookie,
 )
 
@@ -103,7 +104,11 @@ async def login_account(account: AccountContext) -> LoginState:
     auth_flow = str(getattr(provider, "auth_flow", "") or "").lower()
     domain = account.endpoints.session_cookie_domain
 
-    if auth_flow == "manual_cookie_only":
+    manual_cookie = (
+        auth_flow == "manual_cookie_only"
+        or spec.credential_ref.source == CredentialSource.MANUAL_COOKIE
+    )
+    if manual_cookie:
         if has_session_cookie(account.session, domain):
             return _record(account, LoginState(status="success", credential_source="manual_cookie"))
         return _record(account, LoginState(status="manual_cookie_required", credential_source="manual_cookie"))
@@ -118,6 +123,8 @@ async def login_account(account: AccountContext) -> LoginState:
         try:
             account.session.cookie_jar.clear()
             form = await client.fetch_login_form()
+            if auth_flow == "tronclass_form_captcha":
+                return await _login_with_captcha(account, client, form, resolved)
             outcome = await client.submit_login(form, resolved.user, resolved.password)
         except LoginRejectedError:
             return _record(account, LoginState(status="rejected", credential_source=resolved.source))
@@ -143,3 +150,110 @@ async def login_account(account: AccountContext) -> LoginState:
         return _record(account, LoginState(status="success", credential_source=resolved.source))
     finally:
         account.state.login_in_progress = False
+
+
+AUTO_CAPTCHA_ATTEMPTS = 3
+HUMAN_CAPTCHA_ATTEMPTS = 3
+
+
+def _captcha_save_path(account: AccountContext) -> Any:
+    import tempfile
+    from pathlib import Path
+
+    base = getattr(getattr(account.services, "states", None), "base_dir", None)
+    root = Path(base) if base is not None else Path(tempfile.gettempdir())
+    return root / "state" / "captcha" / "{}.jpg".format(account.spec.profile)
+
+
+def _cleanup_captcha_file(save_path: Any) -> None:
+    try:
+        from pathlib import Path
+
+        Path(save_path).unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _status_from_reason(reason: str) -> str:
+    if reason == "success":
+        return "success"
+    if reason == "rejected":
+        return "rejected"
+    return "captcha_failed"
+
+
+def _finalize_login(account: AccountContext, resolved: Any, status: str) -> LoginState:
+    if status == "success":
+        _save_cookies(account)
+    return _record(account, LoginState(status=status, credential_source=resolved.source))
+
+
+async def _login_with_captcha(
+    account: AccountContext,
+    client: TronHttpClient,
+    form: Any,
+    resolved: Any,
+) -> LoginState:
+    """Auto-OCR a built-in form captcha, then fall back to a human prompt.
+
+    Each captcha error re-fetches the form so a fresh image (and execution token)
+    is used. A wrong password short-circuits to ``rejected`` instead of looping.
+    The password and captcha answer stay local and never enter logs or events.
+    """
+    services = account.services
+    solver = getattr(services, "captcha_solver", None)
+    prompt = getattr(services, "captcha_prompt", None)
+    save_path = _captcha_save_path(account)
+
+    captcha_field = detect_captcha_field(form)
+    if not captcha_field:
+        result = await client.submit_builtin_form_login(form, resolved.user, resolved.password)
+        return _finalize_login(account, resolved, _status_from_reason(result.reason))
+
+    try:
+        for _ in range(AUTO_CAPTCHA_ATTEMPTS):
+            image = await client.fetch_captcha_image(form.action_url)
+            answer = solver.solve(image) if solver is not None else None
+            if not answer:
+                break  # OCR unavailable -> hand off to the human prompt.
+            result = await client.submit_builtin_form_login(
+                form,
+                resolved.user,
+                resolved.password,
+                captcha_field=captcha_field,
+                captcha_answer=answer,
+            )
+            if result.reason != "captcha_error":
+                return _finalize_login(account, resolved, _status_from_reason(result.reason))
+            form = await client.fetch_login_form()
+            captcha_field = detect_captcha_field(form) or captcha_field
+
+        if prompt is None:
+            return _record(
+                account, LoginState(status="captcha_required", credential_source=resolved.source)
+            )
+
+        for attempt in range(HUMAN_CAPTCHA_ATTEMPTS):
+            image = await client.fetch_captcha_image(form.action_url)
+            answer = await prompt.prompt(image, attempt=attempt, save_path=save_path)
+            if not answer:
+                return _record(
+                    account, LoginState(status="captcha_failed", credential_source=resolved.source)
+                )
+            result = await client.submit_builtin_form_login(
+                form,
+                resolved.user,
+                resolved.password,
+                captcha_field=captcha_field,
+                captcha_answer=answer,
+            )
+            if result.reason != "captcha_error":
+                return _finalize_login(account, resolved, _status_from_reason(result.reason))
+            form = await client.fetch_login_form()
+            captcha_field = detect_captcha_field(form) or captcha_field
+
+        return _record(
+            account, LoginState(status="captcha_failed", credential_source=resolved.source)
+        )
+    finally:
+        _cleanup_captcha_file(save_path)

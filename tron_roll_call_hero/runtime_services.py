@@ -193,3 +193,5 @@ class RuntimeServices:
     notifications: Any = None
     artifacts: Any = None
     teacher_qr: Any = None
+    captcha_solver: Any = None
+    captcha_prompt: Any = None

@@ -135,10 +135,10 @@ PROVIDERS: Dict[str, ProviderDefinition] = {
         label="Fu Jen Catholic University TronClass",
         base_url="https://elearn2.fju.edu.tw",
         login_url="https://elearn2.fju.edu.tw/login",
-        auth_flow="manual_cookie_only",
+        auth_flow="tronclass_form_captcha",
         status="ready",
         support_level="ready",
-        user_visible=False,
+        user_visible=True,
         capabilities=ProviderCapabilities(
             number=True,
             radar=True,
@@ -149,7 +149,7 @@ PROVIDERS: Dict[str, ProviderDefinition] = {
             local_scanner=True,
             direct_code_lookup=True,
         ),
-        notes="Hidden from default user-facing provider lists. FJU login is manual-cookie-only; authenticated TronClass API flows share the common runtime.",
+        notes="帳密登入 + 圖形驗證碼自動辨識（ddddocr，選用），失敗 fallback 人工輸入；authenticated TronClass API flows share the common runtime.",
     ),
     "tku": ProviderDefinition(
         key="tku",

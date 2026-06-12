@@ -7,7 +7,10 @@ password into a spec or resolution result, and must not import runtime_context.
 
 import json
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
 
+from tron_roll_call_hero import providers
 from tron_roll_call_hero import tron
 from tron_roll_call_hero.account_models import CredentialSource
 from tron_roll_call_hero.account_registry import AccountRegistry, SkippedAccount, TargetResolution
@@ -222,8 +225,13 @@ class CredentialSourceTest(unittest.TestCase):
                 "groups": [],
             }
         )
-        registry = AccountRegistry(config)
-        specs = registry.list_specs()
+        # A provider whose auth_flow is manual-cookie-only resolves to a
+        # MANUAL_COOKIE credential ref with no password. fju now logs in with a
+        # password, so patch it to manual-cookie to exercise that branch.
+        manual_fju = replace(providers.PROVIDERS["fju"], auth_flow="manual_cookie_only")
+        with patch.dict(providers.PROVIDERS, {"fju": manual_fju}):
+            registry = AccountRegistry(config)
+            specs = registry.list_specs()
 
         self.assertEqual(len(specs), 1)
         self.assertEqual(specs[0].provider_key, "fju")

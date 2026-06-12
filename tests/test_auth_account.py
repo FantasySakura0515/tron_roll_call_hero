@@ -196,5 +196,115 @@ class ManualCookieAuthTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state.status, "manual_cookie_required")
 
 
+class _FixedSolver:
+    def __init__(self, answer):
+        self._answer = answer
+
+    def solve(self, image_bytes):
+        return self._answer
+
+
+class _FixedPrompt:
+    def __init__(self, answer):
+        self._answer = answer
+        self.calls = 0
+
+    async def prompt(self, image_bytes, *, attempt, save_path):
+        self.calls += 1
+        return self._answer
+
+
+class CaptchaLoginTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.base = make_workspace_temp_dir()
+        self.repo = FileAccountStateRepository(self.base)
+        self.fake = await FakeTronServer().start()
+        self.fake.captcha_login = True
+        self.fake.captcha_answer = "abcd"
+        self.url_patch = self.fake.patch_tron_http_urls(tron_http)
+        self.url_patch.__enter__()
+        self.sink = CollectingEventSink()
+
+    async def asyncTearDown(self) -> None:
+        self.url_patch.__exit__(None, None, None)
+        await self.fake.close()
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def make_account(self, session, *, solver=None, prompt=None, password="pass1") -> AccountContext:
+        config = make_config([{"user": "user1", "passwd": password, "school": "fju"}])
+        spec = make_spec("fju1", "user1", "fju")
+        services = RuntimeServices(
+            credentials=CredentialResolver(config, environ={}),
+            cookies=self.repo,
+            states=self.repo,
+            events=self.sink,
+            clock=FixedClock(0.0),
+            captcha_solver=solver,
+            captcha_prompt=prompt,
+        )
+        return AccountContext(
+            spec=spec,
+            config=AccountConfig.from_config(config),
+            endpoints=self.fake.endpoints(),
+            session=session,
+            state=AccountRuntimeState(),
+            services=services,
+        )
+
+    async def test_auto_ocr_success(self) -> None:
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(session, solver=_FixedSolver("abcd"))
+            state = await login_account(account)
+        self.assertEqual(state.status, "success")
+        self.assertTrue(self.repo.load_cookies("fju1"))
+
+    async def test_ocr_unavailable_falls_back_to_prompt(self) -> None:
+        prompt = _FixedPrompt("abcd")
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(session, solver=_FixedSolver(None), prompt=prompt)
+            state = await login_account(account)
+        self.assertEqual(state.status, "success")
+        self.assertEqual(prompt.calls, 1)
+
+    async def test_ocr_wrong_then_retry_success(self) -> None:
+        self.fake.captcha_wrong_remaining = 1
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(session, solver=_FixedSolver("abcd"))
+            state = await login_account(account)
+        self.assertEqual(state.status, "success")
+
+    async def test_all_fail_returns_captcha_failed(self) -> None:
+        self.fake.captcha_wrong_remaining = 99
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(
+                session, solver=_FixedSolver("abcd"), prompt=_FixedPrompt("abcd")
+            )
+            state = await login_account(account)
+        self.assertEqual(state.status, "captcha_failed")
+        self.assertEqual(self.repo.load_cookies("fju1"), [])
+
+    async def test_no_prompt_and_ocr_unavailable_is_captcha_required(self) -> None:
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(session, solver=_FixedSolver(None), prompt=None)
+            state = await login_account(account)
+        self.assertEqual(state.status, "captcha_required")
+
+    async def test_wrong_password_is_rejected_not_captcha_loop(self) -> None:
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(session, solver=_FixedSolver("abcd"), password="wrong")
+            state = await login_account(account)
+        self.assertEqual(state.status, "rejected")
+
+    async def test_password_and_captcha_not_in_event_json(self) -> None:
+        import json
+
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(session, solver=_FixedSolver("abcd"))
+            await login_account(account)
+        blob = json.dumps([event.to_dict() for event in self.sink.events])
+        self.assertNotIn("pass1", blob)
+        self.assertNotIn("abcd", blob)
+
+
 if __name__ == "__main__":
     unittest.main()

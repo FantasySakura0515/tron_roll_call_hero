@@ -563,7 +563,7 @@ class TronOrchestrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status, "missing_credentials")
         log_print.assert_called_once()
 
-    async def test_fju_manual_cookie_provider_skips_password_login_without_cookie(self) -> None:
+    async def test_manual_cookie_provider_skips_password_login_without_cookie(self) -> None:
         session = MagicMock()
         session.cookie_jar = MagicMock()
         tron.CONFIG.clear()
@@ -571,7 +571,12 @@ class TronOrchestrationTest(unittest.IsolatedAsyncioTestCase):
             tron.normalize_config(
                 {
                     "account": {"user": "fju-user", "passwd": "pass1"},
-                    "provider": {"current": "fju"},
+                    # A provider configured as manual-cookie-only still skips the
+                    # password login path in the legacy single-account flow.
+                    "provider": {
+                        "current": "fju",
+                        "available": {"fju": {"auth_flow": "manual_cookie_only"}},
+                    },
                 }
             )
         )
