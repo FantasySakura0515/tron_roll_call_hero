@@ -151,3 +151,93 @@ class FakeTronServerTest(unittest.IsolatedAsyncioTestCase):
                 server.queue_response("rollcalls", status=503, text="down")
                 with self.assertRaises(tron_http.UnexpectedResponseError):
                     await server.client(session).fetch_rollcalls()
+
+
+@unittest.skipUnless(aiohttp is not None and web is not None, "aiohttp.web is required")
+class FakeCaptchaLoginTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.fake = await FakeTronServer().start()
+        self.fake.captcha_login = True
+        self.fake.captcha_answer = "abcd"
+
+    async def asyncTearDown(self) -> None:
+        await self.fake.close()
+
+    async def test_login_page_has_captcha_field(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.fake.login_url) as resp:
+                html = await resp.text()
+        self.assertIn('name="captcha"', html)
+
+    async def test_captcha_image_served(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.fake.base_url + "/captcha.jpg") as resp:
+                self.assertEqual(resp.status, 200)
+                body = await resp.read()
+        self.assertTrue(body)
+
+    async def test_correct_captcha_and_password_sets_session(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.fake.base_url + "/submit",
+                data={"username": "user1", "password": "pass1", "captcha": "abcd"},
+                allow_redirects=False,
+            ) as resp:
+                self.assertEqual(resp.status, 302)
+                self.assertIsNotNone(resp.cookies.get("session"))
+
+    async def test_wrong_captcha_no_session_and_marker(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.fake.base_url + "/submit",
+                data={"username": "user1", "password": "pass1", "captcha": "zzzz"},
+                allow_redirects=False,
+            ) as resp:
+                self.assertEqual(resp.status, 200)
+                self.assertIsNone(resp.cookies.get("session"))
+                text = await resp.text()
+        self.assertIn("captcha", text.lower())
+
+    async def test_scripted_wrong_then_correct(self) -> None:
+        self.fake.captcha_wrong_remaining = 2
+        async with aiohttp.ClientSession() as session:
+            for _ in range(2):
+                async with session.post(
+                    self.fake.base_url + "/submit",
+                    data={"username": "user1", "password": "pass1", "captcha": "abcd"},
+                    allow_redirects=False,
+                ) as resp:
+                    self.assertEqual(resp.status, 200)  # forced captcha error
+            async with session.post(
+                self.fake.base_url + "/submit",
+                data={"username": "user1", "password": "pass1", "captcha": "abcd"},
+                allow_redirects=False,
+            ) as resp:
+                self.assertEqual(resp.status, 302)
+
+    async def test_client_primitives_classify_builtin_form_login(self) -> None:
+        from tron_roll_call_hero.tron_http import detect_captcha_field
+
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            client = self.fake.client(session)
+            form = await client.fetch_login_form()
+            self.assertEqual(detect_captcha_field(form), "captcha")
+
+            image = await client.fetch_captcha_image(form.action_url)
+            self.assertTrue(image)
+
+            wrong = await client.submit_builtin_form_login(
+                form, "user1", "pass1", captcha_field="captcha", captcha_answer="zzzz"
+            )
+            self.assertEqual(wrong.reason, "captcha_error")
+
+            bad_pw = await client.submit_builtin_form_login(
+                form, "user1", "nope", captcha_field="captcha", captcha_answer="abcd"
+            )
+            self.assertEqual(bad_pw.reason, "rejected")
+
+            ok = await client.submit_builtin_form_login(
+                form, "user1", "pass1", captcha_field="captcha", captcha_answer="abcd"
+            )
+            self.assertEqual(ok.reason, "success")
+            self.assertTrue(ok.has_session)

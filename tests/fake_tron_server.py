@@ -29,6 +29,10 @@ class FakeTronServer:
         self.expired_users: set = set()
         self.fail_login_users: set = set()
         self.fail_submit_users: set = set()
+        # 輔大式內建表單 + 圖形驗證碼（預設關閉，不影響既有測試）。
+        self.captcha_login = False
+        self.captcha_answer = "abcd"
+        self.captcha_wrong_remaining = 0
         self.account_rollcall_present: Dict[Any, bool] = {}
         self._extra_session_cookies: Dict[str, str] = {}
         self.rollcalls: List[Dict[str, Any]] = []
@@ -252,6 +256,18 @@ class FakeTronServer:
         scripted = self._script_response("login_page")
         if scripted is not None:
             return scripted
+        if self.captcha_login:
+            captcha_html = """
+            <html>
+              <form class="form-horizontal" action="/submit">
+                <input type="hidden" name="execution" value="abc123">
+                <input type="text" name="username" value="">
+                <input type="password" name="password" value="">
+                <input type="text" name="captcha" value="">
+              </form>
+            </html>
+            """
+            return web.Response(text=captcha_html, content_type="text/html")
         html = """
         <html>
           <form class="form-horizontal" action="/submit">
@@ -262,12 +278,24 @@ class FakeTronServer:
         """
         return web.Response(text=html, content_type="text/html")
 
+    async def captcha_image(self, _request):
+        # 1x1 JPEG 樣本就夠驅動下載；內容不影響測試。
+        return web.Response(
+            body=b"\xff\xd8\xff\xe0fakejpeg\xff\xd9", content_type="image/jpeg"
+        )
+
     async def submit_login(self, request):
         scripted = self._script_response("submit_login")
         if scripted is not None:
             return scripted
         data = await request.post()
         user = str(data.get("username") or "")
+        if self.captcha_login:
+            if self.captcha_wrong_remaining > 0:
+                self.captcha_wrong_remaining -= 1
+                return web.Response(text="captcha incorrect 驗證碼錯誤", status=200)
+            if str(data.get("captcha") or "") != self.captcha_answer:
+                return web.Response(text="captcha incorrect 驗證碼錯誤", status=200)
         if user in self.fail_login_users or self.credentials.get(user) != data.get("password"):
             return web.Response(text="bad credentials", status=200)
 
@@ -570,6 +598,7 @@ class FakeTronServer:
             raise RuntimeError("aiohttp.web is required for FakeTronServer")
         app = web.Application()
         app.router.add_get("/login", self.login_page)
+        app.router.add_get("/captcha.jpg", self.captcha_image)
         app.router.add_post("/submit", self.submit_login)
         app.router.add_get("/", self.home)
         app.router.add_get("/home", self.home)
