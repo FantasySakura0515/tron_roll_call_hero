@@ -182,10 +182,37 @@ def _status_from_reason(reason: str) -> str:
     return "captcha_failed"
 
 
+async def _finalize_submit_result(
+    account: AccountContext, client: TronHttpClient, resolved: Any, result: Any
+) -> LoginState:
+    """Record a non-captcha-error submit outcome, API-confirming any success."""
+    status = _status_from_reason(result.reason)
+    if status == "success" and not await _confirm_authenticated(client):
+        # The captcha passed but the credentials did not; CAS just re-rendered.
+        status = "rejected"
+    return _finalize_login(account, resolved, status)
+
+
 def _finalize_login(account: AccountContext, resolved: Any, status: str) -> LoginState:
     if status == "success":
         _save_cookies(account)
     return _record(account, LoginState(status=status, credential_source=resolved.source))
+
+
+async def _confirm_authenticated(client: TronHttpClient) -> bool:
+    """Probe an authenticated endpoint to confirm a real session.
+
+    CAS-style logins set an unauthenticated session cookie up front, so a
+    ``success`` reason from the form submit is only tentative. A wrong password
+    that CAS does not flag as a captcha error still re-renders the login page
+    while that pre-existing cookie lingers; only an authenticated request tells
+    the two apart.
+    """
+    try:
+        await client.fetch_current_semester()
+        return True
+    except (TronHttpError,) + _network_errors():
+        return False
 
 
 async def _login_with_captcha(
@@ -208,7 +235,7 @@ async def _login_with_captcha(
     captcha_field = detect_captcha_field(form)
     if not captcha_field:
         result = await client.submit_builtin_form_login(form, resolved.user, resolved.password)
-        return _finalize_login(account, resolved, _status_from_reason(result.reason))
+        return await _finalize_submit_result(account, client, resolved, result)
 
     try:
         for _ in range(AUTO_CAPTCHA_ATTEMPTS):
@@ -224,7 +251,7 @@ async def _login_with_captcha(
                 captcha_answer=answer,
             )
             if result.reason != "captcha_error":
-                return _finalize_login(account, resolved, _status_from_reason(result.reason))
+                return await _finalize_submit_result(account, client, resolved, result)
             form = await client.fetch_login_form()
             captcha_field = detect_captcha_field(form) or captcha_field
 
@@ -248,7 +275,7 @@ async def _login_with_captcha(
                 captcha_answer=answer,
             )
             if result.reason != "captcha_error":
-                return _finalize_login(account, resolved, _status_from_reason(result.reason))
+                return await _finalize_submit_result(account, client, resolved, result)
             form = await client.fetch_login_form()
             captcha_field = detect_captcha_field(form) or captcha_field
 

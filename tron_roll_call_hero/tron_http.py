@@ -596,11 +596,15 @@ class TronHttpClient:
         ) as resp:
             html_text = await resp.text()
             final_url = str(resp.url)
-        if self._session_present():
-            return BuiltinLoginResult(final_url=final_url, has_session=True, reason="success")
+        # Check the captcha-error marker BEFORE the cookie: CAS-style logins set an
+        # unauthenticated session cookie on the very first page load, so a present
+        # cookie does not prove the submit succeeded. A "success" here is only
+        # tentative — the caller must confirm with an authenticated request.
         lowered = html_text.lower()
         if any(hint.lower() in lowered for hint in captcha_error_hints):
             return BuiltinLoginResult(final_url=final_url, has_session=False, reason="captcha_error")
+        if self._session_present():
+            return BuiltinLoginResult(final_url=final_url, has_session=True, reason="success")
         return BuiltinLoginResult(final_url=final_url, has_session=False, reason="rejected")
 
     async def submit_login(self, form: LoginForm, username: str, password: str) -> LoginOutcome:

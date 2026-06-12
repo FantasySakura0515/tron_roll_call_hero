@@ -33,6 +33,9 @@ class FakeTronServer:
         self.captcha_login = False
         self.captcha_answer = "abcd"
         self.captcha_wrong_remaining = 0
+        # CAS-style: GET /login sets an UNAUTHENTICATED session cookie up front,
+        # so cookie presence alone cannot prove the submit authenticated.
+        self.captcha_presets_session = False
         self.account_rollcall_present: Dict[Any, bool] = {}
         self._extra_session_cookies: Dict[str, str] = {}
         self.rollcalls: List[Dict[str, Any]] = []
@@ -257,9 +260,14 @@ class FakeTronServer:
         if scripted is not None:
             return scripted
         if self.captcha_login:
-            return web.Response(
+            response = web.Response(
                 text=self._captcha_login_form(), content_type="text/html"
             )
+            if self.captcha_presets_session:
+                # Unauthenticated cookie value: matches no user, so authenticated
+                # API calls still 401 until a real login replaces it.
+                response.set_cookie("session", "cas-pre-login")
+            return response
         html = """
         <html>
           <form class="form-horizontal" action="/submit">

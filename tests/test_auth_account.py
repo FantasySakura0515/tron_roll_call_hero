@@ -295,6 +295,23 @@ class CaptchaLoginTest(unittest.IsolatedAsyncioTestCase):
             state = await login_account(account)
         self.assertEqual(state.status, "rejected")
 
+    async def test_cas_preset_session_wrong_password_is_rejected(self) -> None:
+        # CAS sets an unauthenticated session cookie up front; a wrong password
+        # must not be reported as success just because that cookie exists.
+        self.fake.captcha_presets_session = True
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(session, solver=_FixedSolver("abcd"), password="wrong")
+            state = await login_account(account)
+        self.assertEqual(state.status, "rejected")
+        self.assertEqual(self.repo.load_cookies("fju1"), [])
+
+    async def test_cas_preset_session_correct_login_succeeds(self) -> None:
+        self.fake.captcha_presets_session = True
+        async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)) as session:
+            account = self.make_account(session, solver=_FixedSolver("abcd"))
+            state = await login_account(account)
+        self.assertEqual(state.status, "success")
+
     async def test_password_and_captcha_not_in_event_json(self) -> None:
         import json
 
