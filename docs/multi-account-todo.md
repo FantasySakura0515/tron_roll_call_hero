@@ -612,8 +612,8 @@ Phase 4 驗收：
 - [x] reauth does not touch other workers
 - [x] qr all returns per-account results
 - [x] bot responses redact secrets
-- [ ] Discord adapter E2E（fake supervisor + 完整指令流程）
-- [ ] LINE adapter E2E（fake supervisor + 完整指令流程）
+- [x] Discord adapter E2E（interactions webhook → BotRuntime → live worker，status 反映真實 phase）
+- [x] LINE adapter E2E（LINE webhook → BotRuntime → live worker；status 與 qr fan-out 完整鏈路、回覆 redaction 驗證）
 
 ### 5.4 Client / local app
 

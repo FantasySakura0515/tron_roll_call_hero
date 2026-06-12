@@ -50,9 +50,16 @@ def make_config() -> dict:
                 "profile": "user1",
                 "channel_id": "chan-1",
             },
+            binding_key("line", "line-user1"): {
+                "adapter": "line",
+                "external_user_id": "line-user1",
+                "profile": "user1",
+                "channel_id": "",
+            },
         },
         "admins": {"discord": ["admin-1"]},
         "security": {"dangerous_cooldown_seconds": 0, "audit_log": False},
+        "discord": {"public_key_env": "TEST_BRIDGE_DISCORD_PUBLIC_KEY"},
     }
     return config
 
@@ -174,6 +181,124 @@ class BotSupervisorBridgeTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(QR_SECRET, encoded)
         self.assertIn("user1", result.reply)
         self.assertIn("user2", result.reply)
+
+
+class AdapterSupervisorE2ETest(BotSupervisorBridgeTest):
+    """Full-chain E2E: platform webhook -> adapter server -> BotRuntime -> worker."""
+
+    async def asyncSetUp(self) -> None:
+        await super().asyncSetUp()
+        from unittest.mock import patch
+
+        from aiohttp import web
+
+        from troTHU.adapter_server import create_app
+
+        self._env_patch = patch.dict(
+            "os.environ", {"TEST_BRIDGE_DISCORD_PUBLIC_KEY": "test-public-key"}, clear=False
+        )
+        self._env_patch.start()
+        self.addCleanup(self._env_patch.stop)
+
+        self.line_replies: list = []
+
+        async def fake_line_sender(**kwargs):
+            self.line_replies.append(kwargs)
+            return {"ok": True}
+
+        self.server_app = create_app(
+            self.config,
+            self.runtime,
+            line_sender=fake_line_sender,
+            adapter="all",
+            discord_signature_verifier=lambda **_kwargs: True,
+        )
+        self.runner = web.AppRunner(self.server_app)
+        await self.runner.setup()
+        site = web.TCPSite(self.runner, "127.0.0.1", 0)
+        await site.start()
+        port = site._server.sockets[0].getsockname()[1]
+        self.server_url = "http://127.0.0.1:{}".format(port)
+
+    async def asyncTearDown(self) -> None:
+        await self.runner.cleanup()
+        await super().asyncTearDown()
+
+    async def test_line_webhook_status_reflects_live_worker(self) -> None:
+        import aiohttp
+
+        event_body = {
+            "events": [
+                {
+                    "type": "message",
+                    "replyToken": "reply-1",
+                    "message": {"type": "text", "text": "status"},
+                    "source": {"userId": "line-user1"},
+                }
+            ]
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.server_url + "/line/webhook", json=event_body
+            ) as response:
+                body = await response.json()
+
+        self.assertEqual(response.status, 200)
+        self.assertTrue(body["ok"])
+        result = body["results"][0]
+        self.assertEqual(result["profile"], "user1")
+        self.assertIn("monitoring", result["reply"])
+        # The reply went back through the LINE sender, redacted and live.
+        self.assertEqual(len(self.line_replies), 1)
+        self.assertIn("monitoring", self.line_replies[0]["text"])
+
+    async def test_discord_interaction_status_reflects_live_worker(self) -> None:
+        import aiohttp
+
+        payload = {
+            "type": 2,
+            "data": {"name": "status"},
+            "member": {"user": {"id": "d-user1"}},
+            "channel_id": "chan-1",
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.server_url + "/discord/interactions",
+                json=payload,
+                headers={
+                    "X-Signature-Ed25519": "sig",
+                    "X-Signature-Timestamp": "ts",
+                },
+            ) as response:
+                body = await response.json()
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("monitoring", body["data"]["content"])
+
+    async def test_line_qr_fanout_returns_per_account_results(self) -> None:
+        import aiohttp
+
+        event_body = {
+            "events": [
+                {
+                    "type": "message",
+                    "replyToken": "reply-2",
+                    "message": {"type": "text", "text": "qr {}".format(QR_PAYLOAD)},
+                    "source": {"userId": "line-user1"},
+                }
+            ]
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.server_url + "/line/webhook", json=event_body
+            ) as response:
+                body = await response.json()
+
+        self.assertEqual(response.status, 200)
+        result = body["results"][0]
+        self.assertTrue(result["ok"])
+        self.assertIn("user1: confirmed", result["reply"])
+        self.assertNotIn(QR_SECRET, json.dumps(body, ensure_ascii=False))
 
 
 class DecouplingTest(unittest.TestCase):
