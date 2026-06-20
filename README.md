@@ -216,11 +216,13 @@ python -m tron_roll_call_hero.tron bot serve --adapter generic
 
 ## 其他功能
 
-- **多帳號 / 群組**：一份設定管多個學號，用 `now` 一鍵切換（見上面 config 教學）。
+- **多帳號 / 群組（真正並行）**：`now: <學號>` 監控單一帳號；`now: class A` 會**同時**啟動群組內每個有效帳號，各自獨立 session / cookie / 狀態，一帳號失敗不影響其他，數字／雷達／QR 各自簽到。本機 CLI（`tron run`）與 Discord bot 走的是同一套 supervisor（worker 架構）。
+  - 區分：「多 profile 管理」是指一份 config 收納多組學號；「真正並行監控」是指 `now: class A` 一次跑起全部 worker。兩者現在都支援。
+- **支援的點名類型**：數字（Number）、雷達（Radar）、手動 QR、教師輔助 QR（Teacher QR，需設教師帳號）。
 - **時區排程**：`config.advanced.yaml` 裡可設 IANA 時區（如 `Asia/Taipei`），每天可有多個時段。
 - **本機唯讀面板**：`python -m tron_roll_call_hero.tron app serve --open` 會在 localhost 開一個唯讀的小面板，只能「看」狀態（不會送點名、不會匯入 cookie、不會改帳號）。
 - **環境自我檢查**：`python -m tron_roll_call_hero.tron doctor` 一鍵檢查環境、設定、登入來源是否正常。
-- **狀態快照**：`python -m tron_roll_call_hero.tron status --json` 印出目前本機狀態。
+- **狀態快照**：`python -m tron_roll_call_hero.tron status`（加 `--json`）印出本機狀態，含每個帳號的 bot/監控狀態與目前 `now` 會啟動／略過哪些帳號（`multi_account` 區段，不含密碼／cookie）。
 
 ---
 

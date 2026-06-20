@@ -1061,6 +1061,7 @@ _LEGACY_EXPORTS = {
     'submit_group_radar': ('tron_roll_call_hero.group_runtime', 'submit_group_radar'),
     'run_monitor_forever': ('tron_roll_call_hero.monitor_runtime', 'run_monitor_forever'),
     'run_single_account_via_worker': ('tron_roll_call_hero.monitor_runtime', 'run_single_account_via_worker'),
+    'config_reload_watcher': ('tron_roll_call_hero.monitor_runtime', 'config_reload_watcher'),
     'project_worker_status': ('tron_roll_call_hero.runtime_helpers', 'project_worker_status'),
     'run_teacher_assisted_qr': ('tron_roll_call_hero.qr_teacher_runtime', 'run_teacher_assisted_qr'),
     'save_account_for_next_launch': ('tron_roll_call_hero.config_runtime', 'save_account_for_next_launch'),

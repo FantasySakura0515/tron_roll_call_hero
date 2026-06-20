@@ -2,6 +2,8 @@
 
 把 `tron-roll-call-hero` 部署到一台 24/7 的機器上，用 Discord bot 控制多帳號自動點名（數字／雷達／QR）。預設走 **Discord Gateway 長連線**，不需要公開網址。
 
+> **多帳號 live 監控需要 supervisor 模式**（`bot discord-gateway --supervisor`）：bot 才會啟動每個帳號的 live worker、指令（`status / force / reauth / qr`）才會操作真實 worker。本指南的 **Dockerfile `CMD`** 與 **systemd `ExecStart`（`deploy/tron-bot.service`）已預設帶上 `--supervisor`**，照本指南部署即為真多帳號並行；若你自訂啟動指令，記得保留這個旗標（沒帶的話 bot 只會讀靜態 runtime 狀態）。
+
 ---
 
 ## 1. 建立 Discord application 與 bot

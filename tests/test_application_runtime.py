@@ -360,5 +360,50 @@ class AppMainWorkerPathTest(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(int(tron.MONITOR_STATUS.get("check_count") or 0), 1)
 
 
+class ConfigReloadWatcherTest(unittest.IsolatedAsyncioTestCase):
+    async def test_watcher_reloads_workers_on_config_file_change(self) -> None:
+        import os
+        import tempfile
+        from types import SimpleNamespace
+
+        class FakeApp:
+            def __init__(self) -> None:
+                self.reload_calls = 0
+
+            async def reload(self, config, now=None):
+                self.reload_calls += 1
+                return SimpleNamespace(ok=True)
+
+        app = FakeApp()
+        orig_path = tron.CONFIG_PATH
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = Path(tmp) / "config.yaml"
+            cfg.write_text("now: ''\n", encoding="utf-8")
+            tron.CONFIG_PATH = cfg
+            shutdown = asyncio.Event()
+            try:
+                with (
+                    patch.object(tron, "reload_config_after_editor"),
+                    patch.object(tron, "log_print"),
+                ):
+                    task = asyncio.create_task(
+                        tron.config_reload_watcher(app, shutdown, interval=0.02)
+                    )
+                    await asyncio.sleep(0.05)
+                    # Simulate an external edit by bumping the file mtime.
+                    cfg.write_text("now: 'class A'\n", encoding="utf-8")
+                    os.utime(cfg, (cfg.stat().st_atime, cfg.stat().st_mtime + 10))
+                    for _ in range(200):
+                        if app.reload_calls >= 1:
+                            break
+                        await asyncio.sleep(0.01)
+                    shutdown.set()
+                    await task
+            finally:
+                tron.CONFIG_PATH = orig_path
+
+        self.assertGreaterEqual(app.reload_calls, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

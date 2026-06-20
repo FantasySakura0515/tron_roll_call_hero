@@ -583,6 +583,44 @@ async def watch_any_key_to_reload_worker(application: ctx.Any, shutdown_event: c
             ctx.log_print("設定重新載入失敗：{}".format(getattr(report, "reason", "unknown")))
 
 
+async def config_reload_watcher(
+    application: ctx.Any, shutdown_event: ctx.asyncio.Event, *, interval: float=2.0
+) -> None:
+    """Poll ``config.yaml`` for external edits and reconcile workers via
+    ``application.reload`` — headless auto-reload for the non-interactive worker
+    path. Touches no global active profile; reload reconciles per-account workers
+    (add/remove/restart only the affected ones)."""
+    def _mtime() -> ctx.Optional[float]:
+        try:
+            return ctx.CONFIG_PATH.stat().st_mtime if ctx.CONFIG_PATH.exists() else None
+        except OSError:
+            return None
+
+    last_mtime = _mtime()
+    while not shutdown_event.is_set():
+        try:
+            await ctx.asyncio.wait_for(shutdown_event.wait(), timeout=interval)
+            return
+        except ctx.asyncio.TimeoutError:
+            pass
+        mtime = _mtime()
+        if mtime is None or mtime == last_mtime:
+            continue
+        last_mtime = mtime
+        try:
+            ctx.reload_config_after_editor()
+            report = await application.reload(
+                ctx.CONFIG, now=ctx.effective_config_now_value(ctx.CONFIG) or None
+            )
+        except Exception as exc:  # noqa: BLE001 - a bad edit must not kill the worker
+            ctx.log(event="config_reload", status="error", message="config.yaml 自動重新載入失敗。", error=exc)
+            continue
+        if getattr(report, "ok", False):
+            ctx.log_print("偵測到 config.yaml 變更，已套用到帳號 worker。")
+        else:
+            ctx.log_print("config.yaml 變更套用失敗：{}".format(getattr(report, "reason", "unknown")))
+
+
 async def run_single_account_via_worker(
     shutdown_event: ctx.Any,
     *,
@@ -629,7 +667,13 @@ async def run_single_account_via_worker(
                         task.cancel()
                 await ctx.asyncio.gather(*tasks, return_exceptions=True)
         else:
-            await shutdown_event.wait()
+            watcher = ctx.asyncio.create_task(config_reload_watcher(application, shutdown_event))
+            try:
+                await shutdown_event.wait()
+            finally:
+                if not watcher.done():
+                    watcher.cancel()
+                await ctx.asyncio.gather(watcher, return_exceptions=True)
     finally:
         await application.stop()
 

@@ -541,7 +541,7 @@ Phase 4 驗收：
 
 ### 5.1 Config reload
 
-- [ ] watcher 讀新 config（檔案 watcher 留待 app_main 接線；reload API 已就緒）
+- [x] watcher 讀新 config（`config_reload_watcher` 於非互動 worker 路徑輪詢 config.yaml mtime → `app.reload()`，2026-06-20）
 - [x] registry 建新 desired specs
 - [x] supervisor reconcile（`AccountSupervisor.reconcile`）
 - [x] add/remove/restart/keep report（`MonitorApplication.reload` → `ReloadReport`）
@@ -561,24 +561,24 @@ Phase 4 驗收：
 
 ### 5.2 Status 與 console
 
-- [ ] supervisor summary
-- [ ] 每帳號 phase/login/check/error
-- [ ] interactive console 不互相覆寫
-- [ ] JSON status 包含 accounts
+- [x] supervisor summary（`MonitorApplication.status_report()` + dashboard 卡片 + bot `accounts`）
+- [x] 每帳號 phase/login/check/error（dashboard 卡片 + bot accounts + CLI `multi_account.accounts`）
+- [ ] interactive console 不互相覆寫（單帳號狀態行已做；群組互動 console 尚未）
+- [x] JSON status 包含 accounts（`tron status --json` 的 `multi_account.accounts`，2026-06-20）
 - [x] dashboard 聚合 per-account repository（本機 dashboard 直讀 supervisor snapshot + event store）
-- [ ] console renderer 從 supervisor snapshot 讀資料
-- [ ] console 顯示 partial failure，不把單一帳號失敗當全域失敗
-- [ ] status JSON 顯示 desired accounts / running accounts / skipped accounts
-- [x] status JSON 不包含 password/cookie/QR data（dashboard API 回應驗證）
-- [ ] legacy single-account status 保持可讀
+- [x] console renderer 從 supervisor snapshot 讀資料（`worker_status_line_loop` 投影 snapshot，2026-06-20）
+- [ ] console 顯示 partial failure（dashboard 已分帳號顯示；CLI 文字版尚未明確標 partial）
+- [x] status JSON 顯示 desired/running/skipped accounts（`multi_account.desired/skipped` + 每帳號 bot/monitor state，2026-06-20）
+- [x] status JSON 不包含 password/cookie/QR data（dashboard API + `tron status` JSON 皆驗證）
+- [x] legacy single-account status 保持可讀（`status_report()` 仍含 active_profile 區段）
 
 測試：
 
-- [ ] two-account snapshot formatting
-- [ ] one failed / one healthy status
-- [ ] skipped account warning formatting
-- [ ] status JSON secret redaction
-- [ ] dashboard cards read per-account repository
+- [ ] two-account snapshot formatting（CLI 文字版多帳號格式測試尚未）
+- [x] one failed / one healthy status（`test_partial_login_failure_does_not_stop_group`）
+- [x] skipped account warning formatting（dashboard 渲染 skipped + `test_dashboard_page_renders_skipped_accounts`）
+- [x] status JSON secret redaction（`test_status_report_includes_redacted_multi_account_section`）
+- [x] dashboard cards read per-account repository（`test_dashboard_server`）
 
 ### 5.3 Bot
 
@@ -641,27 +641,27 @@ Phase 4 驗收：
 
 ### 5.5 Packaging
 
-- [ ] PyInstaller hidden imports
-- [ ] Windows console smoke
-- [ ] config reload smoke
-- [ ] shutdown smoke
-- [ ] 打包檔不含 state/config/log
-- [ ] worker shutdown 無 unclosed session warning
-- [ ] packaged app 可讀寫 per-account state layout
-- [ ] packaged app 不包含測試 fake server artifacts
+- [x] PyInstaller hidden imports（`package-check` 驗證 92 模組 + 動態 dispatch 目標 + aiohttp/yaml/nacl 齊全，2026-06-20）
+- [ ] Windows console smoke（需實際 frozen build 於 Windows 執行，本機 macOS 無法驗）
+- [ ] config reload smoke（同上需 frozen build；reload 邏輯已有單元測試覆蓋）
+- [ ] shutdown smoke（同上需 frozen build）
+- [x] 打包檔不含 state/config/log（`DATAS=[]`，`package_diagnostics` 守門驗證）
+- [ ] worker shutdown 無 unclosed session warning（需 frozen build 觀察）
+- [ ] packaged app 可讀寫 per-account state layout（spec 就緒；需 frozen build 驗寫入）
+- [x] packaged app 不包含測試 fake server artifacts（`tests` 在 excludes，`DATAS` 不含）
 
 ### 5.6 文件
 
-- [ ] README 修正現有「多帳號」描述
-- [ ] 寫 group 實際執行方式
-- [ ] 寫 per-account status/partial failure
+- [x] README 修正現有「多帳號」描述（2026-06-20：CLI 與 bot 同套 supervisor，真並行）
+- [x] 寫 group 實際執行方式（`now: class A` 同時啟動全部 worker）
+- [ ] 寫 per-account status/partial failure（status 已含 accounts；partial failure 文字範例待補）
 - [ ] 寫 mixed-provider 限制
 - [ ] 寫 migration 注意事項
 - [ ] release notes
-- [ ] 文件明確區分「多 profile 管理」與「真正多帳號並行監控」
-- [ ] 文件列出目前支援的簽到類型：Number/Radar/Manual QR/Teacher QR
+- [x] 文件明確區分「多 profile 管理」與「真正多帳號並行監控」
+- [x] 文件列出目前支援的簽到類型：Number/Radar/Manual QR/Teacher QR
 - [ ] 文件列出 partial failure 範例
-- [ ] 文件列出 bot/client 指令範例
+- [x] 文件列出 bot/client 指令範例（deploy.md / bot-setup.md：status/force/reauth/qr）
 - [ ] 文件列出舊 state/cookie migration 行為
 
 建議 commits：
