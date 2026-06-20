@@ -157,6 +157,14 @@ class AccountWorker:
 
     def snapshot(self) -> AccountWorkerSnapshot:
         last_error = self._state.last_error or {}
+        # A hard-stuck login oscillates waiting_login <-> logging_in <-> starting;
+        # base "stuck" on the retry count (durable) not the instantaneous phase so
+        # an alerting consumer never samples it as healthy mid-re-attempt. A worker
+        # that has abandoned a rollcall's submission also failed its real job.
+        stuck_login = (
+            self._phase in {"waiting_login", "logging_in", "starting"}
+            and self._state.retry.attempts > len(self._login_backoff)
+        )
         return AccountWorkerSnapshot(
             profile=self.spec.profile,
             provider_key=self.spec.provider_key,
@@ -168,13 +176,8 @@ class AccountWorker:
             healthy=(
                 self._phase not in UNHEALTHY_PHASES
                 and self._state.login.status not in FAILED_LOGIN_STATUSES
-                and not (
-                    # Cycling login past a full backoff round (e.g. wrong creds on
-                    # a non-CAS provider -> retriable 'missing_session') is stuck,
-                    # not healthy, even though the status is nominally retriable.
-                    self._phase == "waiting_login"
-                    and self._state.retry.attempts > len(self._login_backoff)
-                )
+                and not stuck_login
+                and not self._abandoned_submits
             ),
         )
 

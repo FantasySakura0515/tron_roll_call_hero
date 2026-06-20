@@ -161,11 +161,13 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         # credentials on a non-CAS provider -> retriable 'missing_session'
         # forever) must report unhealthy, not healthy=True.
         worker = self.make_worker(login_backoff=(0.01, 0.02))
-        worker._set_phase("waiting_login")
         worker.state.retry.attempts = len(worker._login_backoff) + 1
-        snap = worker.snapshot()
-        self.assertEqual(snap.phase, "waiting_login")
-        self.assertFalse(snap.healthy)
+        # Unhealthy in BOTH the backoff-sleep phase and the re-attempt phase, so
+        # an alerting consumer can't sample it as healthy mid-cycle.
+        worker._set_phase("waiting_login")
+        self.assertFalse(worker.snapshot().healthy)
+        worker._set_phase("logging_in")
+        self.assertFalse(worker.snapshot().healthy)
         # A worker that has only just started retrying is still healthy.
         worker.state.retry.attempts = 1
         self.assertTrue(worker.snapshot().healthy)
@@ -340,9 +342,13 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         await self.wait_for(lambda: worker.snapshot().last_error_code == "submit_abandoned")
         # Keep polling well past the abandon point.
         await self.wait_for(lambda: worker.snapshot().poll_count >= 15)
+        snap = worker.snapshot()
         await worker.stop()
         # Capped at MAX_TRANSIENT_SUBMITS (5), not one submit per poll.
         self.assertLessEqual(len(self.fake.number_attempts), 5)
+        # An abandoned submission is a real failure (student not marked), so the
+        # health signal must reflect it, not stay healthy=True.
+        self.assertFalse(snap.healthy)
 
     async def test_completion_is_persisted_before_graceful_stop(self) -> None:
         # A non-graceful kill (SIGKILL/OOM) in steady-state monitoring must not
