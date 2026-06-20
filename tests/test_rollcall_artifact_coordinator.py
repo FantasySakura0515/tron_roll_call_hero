@@ -210,6 +210,9 @@ class CoordinatedNumberTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.fake.number_attempts) - attempts_after_a, 1)
         self.assertEqual(self.fake.number_attempts[-1]["body"]["numberCode"], "0001")
         self.assertEqual(self.fake.number_attempts[-1]["user"], "user2")
+        # The discoverer submits the winning code once (0000 wrong + 0001 ok),
+        # not twice — no redundant re-submit after the scan confirms it.
+        self.assertEqual(attempts_after_a, 2)
 
 
 if __name__ == "__main__":

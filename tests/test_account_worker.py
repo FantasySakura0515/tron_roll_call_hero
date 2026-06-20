@@ -328,6 +328,22 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         # 60.0 is the default standby_interval (the backoff), not poll_interval.
         self.assertIn(60.0, self.sleep_calls)
 
+    async def test_persistent_submit_failure_is_capped(self) -> None:
+        # A persistent 5xx must not produce an unbounded per-account submit storm:
+        # after a bounded number of transient failures the worker abandons the
+        # rollcall and stops re-submitting, even while it keeps polling.
+        self.fake.rollcalls = [{"is_number": True, "rollcall_id": 42}]
+        for _ in range(60):
+            self.fake.queue_response("number", status=500, text="boom")
+        worker = self.make_worker()
+        await worker.start()
+        await self.wait_for(lambda: worker.snapshot().last_error_code == "submit_abandoned")
+        # Keep polling well past the abandon point.
+        await self.wait_for(lambda: worker.snapshot().poll_count >= 15)
+        await worker.stop()
+        # Capped at MAX_TRANSIENT_SUBMITS (5), not one submit per poll.
+        self.assertLessEqual(len(self.fake.number_attempts), 5)
+
     async def test_completion_is_persisted_before_graceful_stop(self) -> None:
         # A non-graceful kill (SIGKILL/OOM) in steady-state monitoring must not
         # lose the idempotency record: completion is flushed to disk on confirm,

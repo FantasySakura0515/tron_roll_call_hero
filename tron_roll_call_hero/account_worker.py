@@ -61,6 +61,7 @@ DEFAULT_LOGIN_BACKOFF: tuple = (1.0, 2.0, 5.0, 10.0, 30.0, 60.0)
 RETRIABLE_LOGIN_STATUSES = {"transient_error", "missing_session", "login_page_changed"}
 UNHEALTHY_PHASES = {"login_failed", "crashed"}
 FAILED_LOGIN_STATUSES = {"rejected"}
+MAX_TRANSIENT_SUBMITS = 5
 
 
 def _default_session_factory() -> Any:
@@ -129,6 +130,11 @@ class AccountWorker:
         self._context: Optional[AccountContext] = None
         self._task: Optional[asyncio.Task] = None
         self._stop_event = asyncio.Event()
+        self._submit_backoff = False
+        # Bound transient-submit retries per rollcall so a flaky/strict tenant
+        # cannot turn one account into an unbounded re-submission storm.
+        self._submit_failures: Dict[str, int] = {}
+        self._abandoned_submits: set = set()
 
     # ------------------------------------------------------------------
     # Introspection
@@ -278,6 +284,8 @@ class AccountWorker:
         rid = _rollcall_id(rollcall)
         if rid and account_completed(context, kind, rid):
             return True
+        if rid and rid in self._abandoned_submits:
+            return True  # gave up on this rollcall after repeated transient failures
         if not await self._gate_allows(context, rid):
             return True  # fake-rollcall protection: wait, do not submit this round
         result: Optional[SubmissionResult] = None
@@ -301,15 +309,24 @@ class AccountWorker:
                 # the steady-state phase stays "monitoring", so a non-graceful
                 # kill would otherwise lose it and cause a duplicate submit on
                 # restart. _persist_snapshot is idempotent and cheap.
+                self._submit_failures.pop(rid, None)
                 self._persist_snapshot()
             if result.error_code == "unauthorized":
                 self._state.last_error = {"code": "unauthorized"}
                 return False
             if result.status == SubmissionStatus.FAILED and result.error_code == "transient":
-                # A 5xx on submit must not hot-loop the live backend every poll;
-                # back off and surface the error for this account.
-                self._state.last_error = {"code": "submit_transient"}
+                # A 5xx on submit must not hot-loop the live backend: back off,
+                # and after a bounded number of consecutive transient failures
+                # give up on this rollcall so one account can't become an
+                # unbounded re-submission storm against a flaky/strict tenant.
                 self._submit_backoff = True
+                count = self._submit_failures.get(rid, 0) + 1
+                self._submit_failures[rid] = count
+                if count >= MAX_TRANSIENT_SUBMITS:
+                    self._abandoned_submits.add(rid)
+                    self._state.last_error = {"code": "submit_abandoned"}
+                else:
+                    self._state.last_error = {"code": "submit_transient"}
         return True
 
     async def _gate_allows(self, context: AccountContext, rid: str) -> bool:

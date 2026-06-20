@@ -161,7 +161,14 @@ class CoordinatedNumberCodeResolver:
             for candidate in range(int(code_limit)):
                 attempt = await ex.submit_code(account, rollcall_id, candidate)
                 if attempt.status == NumberAttemptStatus.SUCCESS:
-                    return "{:04d}".format(candidate)
+                    code = "{:04d}".format(candidate)
+                    # The winning submit already marked THIS (discoverer) account
+                    # present; record completion so the discoverer skips a
+                    # redundant re-submit. Awaiters use a different account and
+                    # stay uncompleted, so they submit the shared code once.
+                    if await ex.verify_confirmed(account, rollcall_id):
+                        account.state.completed_number[str(rollcall_id or "").strip()] = code
+                    return code
                 if attempt.status == NumberAttemptStatus.WRONG_CODE:
                     continue
                 # auth / transient / unexpected: abort discovery (not cached, retried next wave)

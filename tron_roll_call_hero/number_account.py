@@ -127,6 +127,10 @@ async def answer_number_rollcall(
     resolve_code = getattr(resolver, "resolve_code", None)
     if callable(resolve_code):
         code = await resolve_code(account, rollcall_id, course_id, executor=executor, code_limit=code_limit)
+        if account_completed(account, "number", rid):
+            # The discoverer's winning brute-force scan already confirmed this
+            # account; skip the redundant re-submit of the same code.
+            return _result(SubmissionStatus.CONFIRMED)
         if not code:
             return _result(SubmissionStatus.FAILED, error_code="code_not_found")
         attempt = await executor.submit_code(account, rollcall_id, int(code))
