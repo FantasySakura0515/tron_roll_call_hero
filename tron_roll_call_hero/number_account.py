@@ -122,6 +122,26 @@ async def answer_number_rollcall(
     resolver = resolver or NumberCodeResolver()
     executor = executor or NumberSubmissionExecutor()
 
+    # Coordinated resolvers (the worker path) discover the code once across all
+    # accounts via single-flight; each account then submits the known code once.
+    resolve_code = getattr(resolver, "resolve_code", None)
+    if callable(resolve_code):
+        code = await resolve_code(account, rollcall_id, course_id, executor=executor, code_limit=code_limit)
+        if not code:
+            return _result(SubmissionStatus.FAILED, error_code="code_not_found")
+        attempt = await executor.submit_code(account, rollcall_id, int(code))
+        if attempt.status == NumberAttemptStatus.SUCCESS:
+            if await executor.verify_confirmed(account, rollcall_id):
+                account.state.completed_number[rid] = "{:04d}".format(int(code))
+                return _result(SubmissionStatus.CONFIRMED)
+            return _result(SubmissionStatus.SUBMITTED_UNCONFIRMED)
+        if attempt.status == NumberAttemptStatus.UNAUTHORIZED:
+            return _result(SubmissionStatus.FAILED, error_code="unauthorized")
+        if attempt.status == NumberAttemptStatus.TRANSIENT_FAILURE:
+            return _result(SubmissionStatus.FAILED, error_code="transient")
+        return _result(SubmissionStatus.FAILED, error_code="unexpected_response")
+
+    # Legacy per-account path (plain resolver / single-account CLI back-compat).
     lookup = await resolver.resolve_direct(account, rollcall_id, course_id)
     candidates: Iterable[int] = [int(lookup.code)] if lookup.has_code else range(code_limit)
 

@@ -162,6 +162,13 @@ class AccountWorker:
             healthy=(
                 self._phase not in UNHEALTHY_PHASES
                 and self._state.login.status not in FAILED_LOGIN_STATUSES
+                and not (
+                    # Cycling login past a full backoff round (e.g. wrong creds on
+                    # a non-CAS provider -> retriable 'missing_session') is stuck,
+                    # not healthy, even though the status is nominally retriable.
+                    self._phase == "waiting_login"
+                    and self._state.retry.attempts > len(self._login_backoff)
+                )
             ),
         )
 
@@ -255,13 +262,14 @@ class AccountWorker:
 
             self._last_check_status = str(decision.status or "")
             logged_in = await self._execute_decision(context, decision)
-            await self._sleep(self._poll_interval)
+            await self._sleep(self._standby_interval if self._submit_backoff else self._poll_interval)
 
     _QR_STATUSES = {"unsupported_qrcode", "is_qr", "is_qrcode", "is_qr_code"}
     _KIND_BY_STATUS = {"is_number": "number", "is_radar": "radar"}
 
     async def _execute_decision(self, context: AccountContext, decision: Any) -> bool:
         """Run the matching account executor. Returns False when re-login is needed."""
+        self._submit_backoff = False
         status = str(getattr(decision, "status", "") or "")
         rollcall = getattr(decision, "rollcall", None)
         kind = self._KIND_BY_STATUS.get(status) or ("qr" if status in self._QR_STATUSES else "")
@@ -288,9 +296,20 @@ class AccountWorker:
         if result is not None:
             self._last_result = result
             self._emit_submission(context, result)
+            if result.ok:
+                # Flush the completion (idempotency record) to disk immediately —
+                # the steady-state phase stays "monitoring", so a non-graceful
+                # kill would otherwise lose it and cause a duplicate submit on
+                # restart. _persist_snapshot is idempotent and cheap.
+                self._persist_snapshot()
             if result.error_code == "unauthorized":
                 self._state.last_error = {"code": "unauthorized"}
                 return False
+            if result.status == SubmissionStatus.FAILED and result.error_code == "transient":
+                # A 5xx on submit must not hot-loop the live backend every poll;
+                # back off and surface the error for this account.
+                self._state.last_error = {"code": "submit_transient"}
+                self._submit_backoff = True
         return True
 
     async def _gate_allows(self, context: AccountContext, rid: str) -> bool:

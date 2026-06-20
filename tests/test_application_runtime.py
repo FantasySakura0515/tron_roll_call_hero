@@ -360,6 +360,89 @@ class AppMainWorkerPathTest(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(int(tron.MONITOR_STATUS.get("check_count") or 0), 1)
 
 
+class NumberBruteForceSingleFlightTest(unittest.IsolatedAsyncioTestCase):
+    """Concurrent accounts answering the same number rollcall whose code is not
+    leaked must share ONE brute-force scan (single-flight via the artifact
+    coordinator), not each run the full scan against the live backend."""
+
+    async def asyncSetUp(self) -> None:
+        self.base = make_temp()
+        self.users = ["u1", "u2", "u3", "u4", "u5"]
+        self.fake = await FakeTronServer(
+            credentials={u: "p" + u for u in self.users}
+        ).start()
+        self.fake.per_account_state = True
+        self.fake.correct_number_code = "0050"  # 51 candidates to brute-force
+        self.fake.student_rollcalls_leaks_code = False  # force brute-force
+        self.fake.student_rollcalls = [
+            {"student_id": i, "user_no": u, "status": "pending", "rollcall_status": "on_call"}
+            for i, u in enumerate(self.users, 1)
+        ]
+        self.fake.rollcalls = [{"is_number": True, "rollcall_id": 77}]
+        self.patch = self.fake.patch_tron_http_urls(tron_http)
+        self.patch.__enter__()
+        self.sink = CollectingEventSink()
+        self.app = None
+
+    async def asyncTearDown(self) -> None:
+        if self.app is not None:
+            await self.app.stop()
+        self.patch.__exit__(None, None, None)
+        await self.fake.close()
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    async def wait_for(self, predicate, timeout: float = 20.0) -> None:
+        deadline = asyncio.get_event_loop().time() + timeout
+        while asyncio.get_event_loop().time() < deadline:
+            if predicate():
+                return
+            await asyncio.sleep(0.02)
+        self.fail("condition not reached within {}s".format(timeout))
+
+    async def test_concurrent_brute_force_is_single_flight(self) -> None:
+        config = tron.normalize_config(
+            tron.merge_simple_and_advanced_config(
+                {
+                    "now": "class B",
+                    "accounts": [{"user": u, "passwd": "p" + u, "school": "thu"} for u in self.users],
+                    "groups": [{"class": "B", "school": "thu", "users": list(self.users)}],
+                    "operating": {},
+                },
+                {},
+            )
+        )
+        self.app = MonitorApplication(
+            config,
+            base_dir=self.base,
+            endpoints=self.fake.endpoints(),
+            event_sink=self.sink,
+            use_schedule=False,
+            poll_interval=0.01,
+            standby_interval=0.01,
+            login_backoff=(0.01, 0.02),
+            restart_backoff=(0.01, 0.02),
+            ignore_attendance_rate_gate=True,
+        )
+        await self.app.start("class B")
+
+        n = len(self.users)
+
+        def confirmed() -> int:
+            return sum(
+                1 for e in self.sink.events
+                if e.event == "rollcall_submission" and e.status == "confirmed"
+            )
+
+        await self.wait_for(lambda: confirmed() >= n)
+
+        # Single-flight: ~one full scan (51) + one submit per account, NOT N x 51.
+        self.assertLessEqual(
+            len(self.fake.number_attempts),
+            51 + 3 * n,
+            "brute-force was not single-flight: {} attempts".format(len(self.fake.number_attempts)),
+        )
+
+
 class ConfigReloadWatcherTest(unittest.IsolatedAsyncioTestCase):
     async def test_watcher_reloads_workers_on_config_file_change(self) -> None:
         import os

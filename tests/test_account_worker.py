@@ -156,6 +156,20 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event.profile, "alpha")
         self.assertEqual(event.provider_key, "thu")
 
+    async def test_stuck_login_reports_unhealthy(self) -> None:
+        # A worker cycling waiting_login past a full backoff round (e.g. wrong
+        # credentials on a non-CAS provider -> retriable 'missing_session'
+        # forever) must report unhealthy, not healthy=True.
+        worker = self.make_worker(login_backoff=(0.01, 0.02))
+        worker._set_phase("waiting_login")
+        worker.state.retry.attempts = len(worker._login_backoff) + 1
+        snap = worker.snapshot()
+        self.assertEqual(snap.phase, "waiting_login")
+        self.assertFalse(snap.healthy)
+        # A worker that has only just started retrying is still healthy.
+        worker.state.retry.attempts = 1
+        self.assertTrue(worker.snapshot().healthy)
+
     async def test_worker_teacher_qr_end_to_end(self) -> None:
         # Single-account E2E: the worker drives teacher-assisted QR through
         # services.teacher_qr (a real TeacherQrCoordinator) against the fake
@@ -299,6 +313,35 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         await self.wait_for(lambda: worker.snapshot().poll_count >= 3)
         self.assertEqual(len(self.fake.number_attempts), 1)
         await worker.stop()
+
+    async def test_transient_submit_failure_backs_off(self) -> None:
+        # A 5xx on submit must not hot-loop the live backend every poll: the
+        # worker backs off (standby_interval) and surfaces the error.
+        self.fake.rollcalls = [{"is_number": True, "rollcall_id": 42}]
+        for _ in range(8):
+            self.fake.queue_response("number", status=500, text="boom")
+        worker = self.make_worker()
+        await worker.start()
+        await self.wait_for(lambda: worker.snapshot().last_error_code == "submit_transient")
+        await self.wait_for(lambda: 60.0 in self.sleep_calls)
+        await worker.stop()
+        # 60.0 is the default standby_interval (the backoff), not poll_interval.
+        self.assertIn(60.0, self.sleep_calls)
+
+    async def test_completion_is_persisted_before_graceful_stop(self) -> None:
+        # A non-graceful kill (SIGKILL/OOM) in steady-state monitoring must not
+        # lose the idempotency record: completion is flushed to disk on confirm,
+        # not only on a later phase transition or graceful stop. Otherwise the
+        # worker re-submits already-confirmed rollcalls on restart.
+        self.fake.rollcalls = [{"is_number": True, "rollcall_id": 42}]
+        worker = self.make_worker()
+        await worker.start()
+        await self.wait_for(lambda: "42" in worker.state.completed_number)
+        # Read persisted state WITHOUT a graceful worker.stop().
+        persisted = self.repo.load("alpha")
+        await worker.stop()
+        self.assertIn("42", persisted.completed_number)
+        self.assertEqual(persisted.completed_number["42"], "0001")
 
     async def test_number_submission_emits_runtime_event(self) -> None:
         self.fake.rollcalls = [{"is_number": True, "rollcall_id": 42}]

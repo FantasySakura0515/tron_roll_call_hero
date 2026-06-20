@@ -17,8 +17,12 @@ import contextlib
 import time
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
-from tron_roll_call_hero.number_account import NumberCodeResolver
-from tron_roll_call_hero.number_rollcall import NumberCodeLookup
+from tron_roll_call_hero.number_account import (
+    NUMBER_CODE_LIMIT,
+    NumberCodeResolver,
+    NumberSubmissionExecutor,
+)
+from tron_roll_call_hero.number_rollcall import NumberAttemptStatus, NumberCodeLookup
 
 DEFAULT_TTL_SECONDS = 120.0
 
@@ -129,6 +133,43 @@ class CoordinatedNumberCodeResolver:
         if code:
             return NumberCodeLookup(code=str(code), source="coordinator")
         return NumberCodeLookup()
+
+    async def resolve_code(
+        self,
+        account: Any,
+        rollcall_id: Any,
+        course_id: Any = "",
+        *,
+        executor: Optional[NumberSubmissionExecutor] = None,
+        code_limit: int = NUMBER_CODE_LIMIT,
+    ) -> Optional[str]:
+        """Single-flight resolution of the number code: direct read, then a
+        shared brute-force scan when the code is not leaked.
+
+        Only one account runs the scan; because the scan is slow (many PUTs),
+        concurrent accounts hit the in-flight task and await it, and later
+        accounts hit the cache — so the brute-force load is paid once, not once
+        per account. Each caller then submits the resolved code itself.
+        """
+        ex = executor or NumberSubmissionExecutor()
+
+        async def _resolve() -> Optional[str]:
+            self.direct_read_count += 1
+            lookup = await self._inner.resolve_direct(account, rollcall_id, course_id)
+            if lookup.has_code:
+                return str(lookup.code)
+            for candidate in range(int(code_limit)):
+                attempt = await ex.submit_code(account, rollcall_id, candidate)
+                if attempt.status == NumberAttemptStatus.SUCCESS:
+                    return "{:04d}".format(candidate)
+                if attempt.status == NumberAttemptStatus.WRONG_CODE:
+                    continue
+                # auth / transient / unexpected: abort discovery (not cached, retried next wave)
+                return None
+            return None
+
+        code = await self._coordinator.get_or_resolve(account.provider_key, rollcall_id, _resolve)
+        return str(code) if code else None
 
     def publish(self, provider_key: str, rollcall_id: Any, code: str) -> None:
         self._coordinator.publish(provider_key, rollcall_id, str(code))
