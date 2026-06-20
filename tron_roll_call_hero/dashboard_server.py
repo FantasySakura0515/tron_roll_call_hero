@@ -140,6 +140,15 @@ DASHBOARD_HTML = """<!doctype html>
       option.textContent = acc.profile;
       target.appendChild(option);
     });
+    (report.skipped || []).forEach(function (item) {
+      var card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        '<div class="profile"><span class="dot red"></span>' +
+        esc(item.profile || item.user || "?") + " (略過)</div>" +
+        '<div class="meta">reason: ' + esc(item.reason || "-") + "</div>";
+      cards.appendChild(card);
+    });
     target.value = selected;
   }
   function renderEvents(body) {

@@ -134,6 +134,28 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         await worker.stop()
         self.assertTrue(session.closed)
 
+    async def test_worker_emits_phase_transition_event(self) -> None:
+        # Operator-relevant phase transitions (class active/standby, login errors)
+        # are emitted as RuntimeEvents so a bot/console subscriber can surface
+        # them, carrying the account identity.
+        self.fake.rollcalls = []
+        worker = self.make_worker()
+        await worker.start()
+        await self.wait_for(
+            lambda: any(
+                e.event == "worker_phase" and e.status == "monitoring"
+                for e in self.sink.events
+            )
+        )
+        await worker.stop()
+
+        event = next(
+            e for e in self.sink.events
+            if e.event == "worker_phase" and e.status == "monitoring"
+        )
+        self.assertEqual(event.profile, "alpha")
+        self.assertEqual(event.provider_key, "thu")
+
     async def test_worker_teacher_qr_end_to_end(self) -> None:
         # Single-account E2E: the worker drives teacher-assisted QR through
         # services.teacher_qr (a real TeacherQrCoordinator) against the fake

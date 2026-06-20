@@ -228,12 +228,44 @@ def account_state_report(profile_name: str='') -> ctx.Dict[str, ctx.Any]:
     return {'profile': profile.name, 'exists': True, 'user': profile.user if ctx.has_real_credential(profile.user) else '', 'label': profile.label, 'runtime_state_path': str(ctx.runtime_state_path(ctx.BASE_DIR)), 'runtime': ctx.account_runtime_summary(profile.name), 'cookie': ctx.cookie_report(profile.name), 'pending_qr_count': pending['count'], 'pending_qr': pending['items'], 'binding_count': bindings['count'], 'adapter_counts': bindings['adapters']}
 
 
+def _multi_account_report() -> ctx.Dict[str, ctx.Any]:
+    """Offline (no live supervisor) multi-account view for ``tron status``.
+
+    ``accounts`` is sourced from the on-disk runtime store (safe fields only);
+    ``desired``/``skipped`` come from the registry resolution of the configured
+    ``now`` target, mirroring what ``MonitorApplication.start()`` would run.
+    """
+    accounts = []
+    for profile in ctx.list_profiles(ctx.CONFIG):
+        summary = ctx.account_runtime_summary(profile.name)
+        accounts.append({
+            'profile': profile.name,
+            'user': profile.user if ctx.has_real_credential(profile.user) else '',
+            'bot_state': summary.get('bot_state', 'stopped'),
+            'monitor_state': summary.get('monitor_state', 'unknown'),
+            'heartbeat_stale': bool(summary.get('heartbeat_stale', False)),
+            'store_status': summary.get('store_status', ''),
+        })
+    requested, kind = '', ''
+    desired: ctx.List[str] = []
+    skipped: ctx.List[ctx.Dict[str, ctx.Any]] = []
+    try:
+        from tron_roll_call_hero.account_registry import AccountRegistry
+        resolution = AccountRegistry(ctx.CONFIG).resolve_target(None)
+        requested, kind = resolution.requested, resolution.kind
+        desired = list(resolution.profiles)
+        skipped = [item.to_dict() for item in resolution.skipped]
+    except Exception:
+        pass
+    return {'requested': requested, 'kind': kind, 'desired': desired, 'skipped': skipped, 'accounts': accounts}
+
+
 def status_report() -> ctx.Dict[str, ctx.Any]:
     active = ctx.get_active_profile(ctx.CONFIG)
     pending = [item.to_dict() for item in ctx.list_pending_qr(ctx.BASE_DIR)]
     provider = ctx.provider_report()
     now = ctx.current_datetime()
-    return {'provider': provider, 'provider_support': provider.get('support', {}), 'active_profile': active.name, 'user': active.user if ctx.has_real_credential(active.user) else '', 'credential': ctx.credential_report(active.name), 'cookie': ctx.cookie_report(active.name), 'log_dir': str(ctx.PATH), 'notifications': ctx.notification_report(), 'integrations': ctx.integration_report(), 'research': ctx.research_report(), 'course_discovery': ctx.course_discovery_report(), 'teacher_assist': ctx.teacher_assist_report(), 'runtime_state': ctx.account_runtime_summary(active.name), 'pending_qr': pending, 'time': {'timezone': ctx.get_config_timezone_name(), 'now': now.isoformat(timespec='seconds'), 'weekday': now.weekday()}, 'config_warnings': list(getattr(ctx, 'CONFIG_WARNINGS', [])), 'last_login': {'status': ctx.LAST_LOGIN_RESULT.status, 'credential_source': ctx.LAST_LOGIN_RESULT.credential_source, 'user': ctx.LAST_LOGIN_RESULT.user}}
+    return {'provider': provider, 'provider_support': provider.get('support', {}), 'active_profile': active.name, 'user': active.user if ctx.has_real_credential(active.user) else '', 'credential': ctx.credential_report(active.name), 'cookie': ctx.cookie_report(active.name), 'log_dir': str(ctx.PATH), 'notifications': ctx.notification_report(), 'integrations': ctx.integration_report(), 'research': ctx.research_report(), 'course_discovery': ctx.course_discovery_report(), 'teacher_assist': ctx.teacher_assist_report(), 'runtime_state': ctx.account_runtime_summary(active.name), 'multi_account': _multi_account_report(), 'pending_qr': pending, 'time': {'timezone': ctx.get_config_timezone_name(), 'now': now.isoformat(timespec='seconds'), 'weekday': now.weekday()}, 'config_warnings': list(getattr(ctx, 'CONFIG_WARNINGS', [])), 'last_login': {'status': ctx.LAST_LOGIN_RESULT.status, 'credential_source': ctx.LAST_LOGIN_RESULT.credential_source, 'user': ctx.LAST_LOGIN_RESULT.user}}
 
 
 def doctor_report(network_probe: ctx.Optional[ctx.Mapping[str, ctx.Any]]=None) -> ctx.Dict[str, ctx.Any]:
@@ -286,6 +318,22 @@ def print_status(json_output: bool=False) -> None:
     print('Bot state: {}'.format(runtime.get('bot_state', 'stopped')))
     print('Monitor state: {}{}'.format(runtime.get('monitor_state', 'unknown'), ' (stale)' if runtime.get('heartbeat_stale') else ''))
     print('Pending QR: {}'.format(len(report['pending_qr'])))
+    multi = report.get('multi_account', {})
+    accounts = multi.get('accounts', [])
+    if accounts:
+        desired = set(multi.get('desired', []))
+        skipped = {item.get('profile') or item.get('user') for item in multi.get('skipped', [])}
+        print('Accounts ({} configured, {} desired now):'.format(len(accounts), len(desired)))
+        for account in accounts:
+            name = account['profile']
+            mark = 'desired' if name in desired else ('skipped' if name in skipped else 'idle')
+            print('  - {} [{}] bot={} monitor={}{}'.format(
+                name,
+                mark,
+                account.get('bot_state', 'stopped'),
+                account.get('monitor_state', 'unknown'),
+                ' (stale)' if account.get('heartbeat_stale') else '',
+            ))
     print('Log dir: {}'.format(ctx.PATH))
 
 

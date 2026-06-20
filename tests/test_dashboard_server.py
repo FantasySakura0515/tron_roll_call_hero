@@ -245,6 +245,15 @@ class DashboardServerTest(unittest.IsolatedAsyncioTestCase):
         ):
             self.assertIn(path, text)
 
+    async def test_dashboard_page_renders_skipped_accounts(self) -> None:
+        async with aiohttp.ClientSession() as session:
+            response = await session.get(self.url("/dashboard"))
+            text = await response.text()
+        # The accounts panel renders skipped accounts (resolution.skipped from
+        # status_report), not only the running ones.
+        self.assertIn("report.skipped", text)
+        self.assertIn("略過", text)
+
     async def test_dashboard_page_does_not_embed_token(self) -> None:
         async with aiohttp.ClientSession() as session:
             response = await session.get(self.url("/dashboard"))

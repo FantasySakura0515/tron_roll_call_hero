@@ -365,12 +365,38 @@ class AccountWorker:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+    _NOTABLE_PHASES = frozenset(
+        {"monitoring", "standby", "login_failed", "waiting_login", "manual_cookie_required", "crashed"}
+    )
+
     def _set_phase(self, phase: str) -> None:
         if phase == self._phase:
             return
         self._phase = phase
         self._state.phase = phase
         self._persist_snapshot()
+        if phase in self._NOTABLE_PHASES:
+            self._emit_phase_event(phase)
+
+    def _emit_phase_event(self, phase: str) -> None:
+        # Operator-relevant phase transitions (class active/standby, login
+        # errors) become RuntimeEvents so a bot/console subscriber can surface
+        # them without the legacy global ``mes()`` push. ``_set_phase`` already
+        # fires only on a real transition, so this is not per-poll noise.
+        events = getattr(self._services, "events", None) if self._services is not None else None
+        if events is None:
+            return
+        error = self._state.last_error or {}
+        message = str(error.get("code", "")) if phase in {"login_failed", "crashed"} else ""
+        events.emit(
+            account_event(
+                "worker_phase",
+                profile=self.spec.profile,
+                provider_key=self.spec.provider_key,
+                status=phase,
+                message=message,
+            )
+        )
 
     def _persist_snapshot(self) -> None:
         states = getattr(self._services, "states", None) if self._services is not None else None
