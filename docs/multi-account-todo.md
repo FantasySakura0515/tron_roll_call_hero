@@ -231,7 +231,7 @@ refactor: scope authentication to account context
 
 - [x] 定義 `RuntimeEvent`
 - [x] account event 強制 profile/provider
-- [ ] legacy `log()` 轉成 event adapter（延後：worker 接線時雙寫 console + event）
+- [x] legacy `log()` 轉成 event adapter（`LoggingEventSink` 雙寫 console + 每日 JSONL，2026-06-20）
 - [x] notification dedupe key 加 profile
 - [x] per-account event identity
 - [x] group-level event 規則（`group:<name>`）
@@ -349,8 +349,8 @@ refactor: scope student QR execution to account context
 - [x] worker poll/execute loop
 - [x] worker runtime heartbeat（phase 轉換時持久化 per-account snapshot）
 - [x] worker graceful stop
-- [ ] `app_main()` 單帳號改由 worker 執行（延後：legacy monitor_loop 內建 teacher assist／console status／attendance gate，需先有 2.3 延後的 log/event adapter 與 Phase 4 teacher coordinator 才能不回歸地切換；屆時 worker 雙寫 console + event）
-- [ ] legacy console input/edit 行為保持（同上，隨 app_main 接線一併驗證）
+- [x] `app_main()` 單帳號改由 worker 執行（`worker_enabled` 預設 ON → 單成員 `MonitorApplication`；保留 `monitor_loop` 與 ClientSession 建構供 legacy/timeout 測試，2026-06-20）
+- [x] legacy console input/edit 行為保持（`worker_status_line_loop` 投影 snapshot→`MONITOR_STATUS`；`watch_any_key_to_reload_worker` 改呼叫 `app.reload()`，2026-06-20）
 
 測試：
 
@@ -368,11 +368,11 @@ refactor: run single-account monitor through account worker
 
 Phase 2 驗收：
 
-- [ ] 單帳號 monitor 不依賴 active profile globals
-- [ ] `rg` 新路徑無 `switch_profile`
-- [ ] `rg` 新路徑無 `get_active_profile(ctx.CONFIG)`
-- [ ] 單帳號 Number/Radar/QR E2E 通過
-- [ ] 完整測試通過
+- [x] 單帳號 monitor 不依賴 active profile globals（worker branch 在 legacy `get_active_profile` 區塊前 return，2026-06-20）
+- [x] `rg` 新路徑無 `switch_profile`（`run_single_account_via_worker` / status loop / reload watcher 皆 clean）
+- [x] `rg` 新路徑無 `get_active_profile(ctx.CONFIG)`
+- [x] 單帳號 Number/Radar/QR E2E 通過（app_main→worker number E2E + teacher-QR worker E2E + 既有 radar worker 測試）
+- [x] 完整測試通過（841 項）
 
 ## Phase 3：Supervisor 與 Number/Radar 多帳號
 

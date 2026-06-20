@@ -33,6 +33,9 @@ class FakeTronServer:
         self.captcha_login = False
         self.captcha_answer = "abcd"
         self.captcha_wrong_remaining = 0
+        # Count captcha image fetches so a test can prove a valid cookie cache
+        # skipped the captcha round-trip entirely.
+        self.captcha_fetch_count = 0
         # CAS-style: GET /login sets an UNAUTHENTICATED session cookie up front,
         # so cookie presence alone cannot prove the submit authenticated.
         self.captcha_presets_session = False
@@ -281,6 +284,7 @@ class FakeTronServer:
 
     async def captcha_image(self, _request):
         # 1x1 JPEG 樣本就夠驅動下載；內容不影響測試。
+        self.captcha_fetch_count += 1
         return web.Response(
             body=b"\xff\xd8\xff\xe0fakejpeg\xff\xd9", content_type="image/jpeg"
         )

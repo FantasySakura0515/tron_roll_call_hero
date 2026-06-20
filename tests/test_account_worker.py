@@ -13,6 +13,7 @@ from tron_roll_call_hero import tron_http
 from tron_roll_call_hero.account_models import AccountSpec, CredentialRef, CredentialSource
 from tron_roll_call_hero.account_state_repository import FileAccountStateRepository
 from tron_roll_call_hero.account_worker import AccountWorker
+from tron_roll_call_hero.teacher_qr_coordinator import TeacherQrCoordinator
 from tron_roll_call_hero.runtime_services import (
     CollectingEventSink,
     CredentialResolver,
@@ -132,6 +133,128 @@ class AccountWorkerTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(session.closed)
         await worker.stop()
         self.assertTrue(session.closed)
+
+    async def test_worker_teacher_qr_end_to_end(self) -> None:
+        # Single-account E2E: the worker drives teacher-assisted QR through
+        # services.teacher_qr (a real TeacherQrCoordinator) against the fake
+        # server's teacher endpoints, then persists completion per account.
+        self.fake.credentials["teacher"] = "tpass"
+        self.fake.rollcalls = [{"is_qrcode": True, "rollcall_id": 55, "course_id": "C7"}]
+
+        coordinator = TeacherQrCoordinator(
+            endpoints=self.fake.endpoints(),
+            credentials=("teacher", "tpass"),
+            poll_interval=0.01,
+            confirm_window=2.0,
+        )
+        spec = AccountSpec(
+            profile="alpha",
+            user="user1",
+            provider_key="thu",
+            credential_ref=CredentialRef(CredentialSource.CONFIG, "alpha", "user1"),
+        )
+        services = RuntimeServices(
+            credentials=CredentialResolver(self.config, environ={}),
+            cookies=self.repo,
+            states=self.repo,
+            events=self.sink,
+            clock=FixedClock(0.0),
+            teacher_qr=coordinator,
+        )
+
+        async def recording_sleep(seconds: float) -> None:
+            self.sleep_calls.append(seconds)
+            await asyncio.sleep(0)
+
+        worker = AccountWorker(
+            spec,
+            self.config,
+            services=services,
+            endpoints=self.fake.endpoints(),
+            poll_interval=0.01,
+            sleep=recording_sleep,
+            ignore_attendance_rate_gate=True,
+        )
+        self.workers.append(worker)
+
+        try:
+            await worker.start()
+            await self.wait_for(lambda: "55" in worker.state.completed_qr)
+            await worker.stop()
+
+            # (1) Exactly one QR submission recorded for this account's own user
+            # (submitted with the student session, not the teacher's).
+            qr_for_user = [a for a in self.fake.qr_answers if a["user"] == "user1"]
+            self.assertEqual(len(qr_for_user), 1, self.fake.qr_answers)
+            self.assertEqual(str(qr_for_user[0]["rollcall_id"]), "55")
+
+            # (2) Persisted per-account state marks the QR rollcall completed.
+            persisted = self.repo.load("alpha")
+            self.assertIn("55", persisted.completed_qr)
+        finally:
+            await coordinator.shutdown()
+
+    async def test_worker_skips_login_when_valid_cookie_cache(self) -> None:
+        # FJU CAS+captcha primary account: restarting with a valid cached cookie
+        # jar must reuse it and NOT trigger a fresh captcha round-trip (legacy
+        # COOKIE_CACHE_RESTORED fast-path parity, commits 13612d5/fffa920).
+        self.fake.captcha_login = True
+        self.fake.rollcalls = []
+
+        class _CountingSolver:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def solve(self, image_bytes):  # pragma: no cover - must not be called
+                self.calls += 1
+                return "abcd"
+
+        solver = _CountingSolver()
+        spec = AccountSpec(
+            profile="fju1",
+            user="user1",
+            provider_key="fju",
+            credential_ref=CredentialRef(CredentialSource.CONFIG, "fju1", "user1"),
+        )
+        services = RuntimeServices(
+            credentials=CredentialResolver(self.config, environ={}),
+            cookies=self.repo,
+            states=self.repo,
+            events=self.sink,
+            clock=FixedClock(0.0),
+            captcha_solver=solver,
+        )
+
+        async def recording_sleep(seconds: float) -> None:
+            self.sleep_calls.append(seconds)
+            await asyncio.sleep(0)
+
+        worker = AccountWorker(
+            spec,
+            self.config,
+            services=services,
+            endpoints=self.fake.endpoints(),
+            poll_interval=0.01,
+            sleep=recording_sleep,
+            ignore_attendance_rate_gate=True,
+        )
+        self.workers.append(worker)
+
+        # Pre-seed a VALID cookie jar (the cookie a real login would receive).
+        self.repo.save_cookies(
+            "fju1", [{"key": "session", "value": self.fake.session_cookie_for("user1")}]
+        )
+        self.fake.captcha_fetch_count = 0
+
+        await worker.start()
+        await self.wait_for(lambda: worker.snapshot().login_status == "success")
+        await worker.stop()
+
+        # The cached jar authenticated, so login was via cookie_cache and the
+        # captcha image was never fetched and the OCR solver never invoked.
+        self.assertEqual(worker.state.login.credential_source, "cookie_cache")
+        self.assertEqual(self.fake.captcha_fetch_count, 0)
+        self.assertEqual(solver.calls, 0)
 
     async def test_login_retry_backoff(self) -> None:
         # Three transient login failures, then the unscripted path succeeds.

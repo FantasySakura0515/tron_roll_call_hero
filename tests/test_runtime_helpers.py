@@ -4,6 +4,7 @@ import time
 import unittest
 
 from tron_roll_call_hero import runtime_helpers
+from tron_roll_call_hero.account_models import AccountWorkerSnapshot
 
 
 class RuntimeHelpersTest(unittest.TestCase):
@@ -344,6 +345,48 @@ class RuntimeHelpersTest(unittest.TestCase):
                 now,
             ),
             "登入中 · 正在登入… · 14:03:27",
+        )
+
+    def test_project_worker_status_maps_phases_and_renders(self) -> None:
+        now = runtime_helpers.datetime(2026, 1, 2, 14, 3, 27)
+        standby_next = runtime_helpers.datetime(2026, 1, 2, 19, 0, 0)
+
+        monitoring = runtime_helpers.project_worker_status(
+            AccountWorkerSnapshot(
+                profile="s1",
+                provider_key="thu",
+                phase="monitoring",
+                poll_count=3,
+                last_check_status="not_call",
+            )
+        )
+        line = runtime_helpers.build_monitor_status_line(monitoring, now)
+        self.assertIn("監控中", line)
+        self.assertIn("第 3 次", line)
+        self.assertIn("not_call", line)
+
+        # Login-ish worker phases collapse to the legacy "登入中" bucket.
+        for phase in ("waiting_login", "logging_in", "manual_cookie_required", "login_failed", "starting"):
+            projected = runtime_helpers.project_worker_status(
+                AccountWorkerSnapshot(profile="s1", provider_key="thu", phase=phase)
+            )
+            self.assertEqual(projected["phase"], "logging_in")
+
+        # crashed/stopping/stopped collapse to the legacy "已暫停" (paused) bucket.
+        for phase in ("crashed", "stopping", "stopped"):
+            projected = runtime_helpers.project_worker_status(
+                AccountWorkerSnapshot(profile="s1", provider_key="thu", phase=phase)
+            )
+            self.assertEqual(projected["phase"], "paused")
+
+        # standby projects the schedule transition so the countdown renders.
+        standby = runtime_helpers.project_worker_status(
+            AccountWorkerSnapshot(profile="s1", provider_key="thu", phase="standby"),
+            next_switch_at=standby_next,
+        )
+        self.assertEqual(
+            runtime_helpers.build_monitor_status_line(standby, now),
+            "待機中 · 倒數 04:56:33 · 14:03:27 · 19:00 開始監控",
         )
 
     def test_predict_schedule_change_finds_next_flip_or_none(self) -> None:

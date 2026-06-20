@@ -174,6 +174,70 @@ class NullEventSink:
         return None
 
 
+class LoggingEventSink:
+    """Dual-writes ``RuntimeEvent``s onto the legacy daily JSONL log and console.
+
+    The account worker emits :class:`RuntimeEvent`s instead of calling the legacy
+    ``logging_runtime.log`` / ``log_print`` directly. When the monitor is routed
+    through workers this sink bridges each event back onto those legacy outputs
+    so the daily JSONL audit record and the permanent console event line that the
+    old ``monitor_loop`` produced are preserved.
+
+    Writers are injectable for tests; the production defaults are resolved lazily
+    so this module keeps its boundary free of ``runtime_context``.
+    """
+
+    def __init__(
+        self,
+        *,
+        log_writer: Optional[Callable[..., Any]] = None,
+        console_writer: Optional[Callable[[Any], Any]] = None,
+    ) -> None:
+        self._log_writer = log_writer
+        self._console_writer = console_writer
+
+    def emit(self, event: Any) -> None:
+        log_writer, console_writer = self._writers()
+        extra: Dict[str, Any] = {
+            "profile": getattr(event, "profile", ""),
+            "provider_key": getattr(event, "provider_key", ""),
+        }
+        data = getattr(event, "data", None)
+        if isinstance(data, Mapping):
+            extra.update(dict(data))
+        log_writer(
+            event=getattr(event, "event", ""),
+            status=getattr(event, "status", ""),
+            message=getattr(event, "message", ""),
+            rollcall_id=getattr(event, "rollcall_id", "") or None,
+            rollcall_type=getattr(event, "attendance_type", ""),
+            extra=extra,
+        )
+        line = self._console_line(event)
+        if line:
+            console_writer(line)
+
+    def _writers(self):
+        if self._log_writer is not None and self._console_writer is not None:
+            return self._log_writer, self._console_writer
+        from tron_roll_call_hero import logging_runtime
+
+        return (
+            self._log_writer or logging_runtime.log,
+            self._console_writer or logging_runtime.log_print,
+        )
+
+    @staticmethod
+    def _console_line(event: Any) -> str:
+        parts = [
+            "[{}]".format(getattr(event, "profile", "")),
+            getattr(event, "event", ""),
+            getattr(event, "status", ""),
+            getattr(event, "message", ""),
+        ]
+        return " ".join(part for part in parts if part).strip()
+
+
 # ---------------------------------------------------------------------------
 # RuntimeServices bundle
 # ---------------------------------------------------------------------------

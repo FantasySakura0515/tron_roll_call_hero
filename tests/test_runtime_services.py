@@ -106,6 +106,105 @@ class EventSinkTest(unittest.TestCase):
         self.assertEqual(sink.events[0]["event"], "login")
 
 
+class _RecordingLog:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def __call__(self, **kwargs):
+        self.calls.append(kwargs)
+        return True
+
+
+class _RecordingConsole:
+    def __init__(self) -> None:
+        self.lines = []
+
+    def __call__(self, msg) -> None:
+        self.lines.append(str(msg))
+
+
+class LoggingEventSinkTest(unittest.TestCase):
+    def test_dual_writes_event_to_jsonl_log_and_console(self) -> None:
+        from tron_roll_call_hero.runtime_events import account_event
+        from tron_roll_call_hero.runtime_services import LoggingEventSink
+
+        log = _RecordingLog()
+        console = _RecordingConsole()
+        sink = LoggingEventSink(log_writer=log, console_writer=console)
+
+        sink.emit(
+            account_event(
+                "rollcall_submission",
+                profile="s1",
+                provider_key="thu",
+                status="confirmed",
+                message="number 12 confirmed",
+                rollcall_id="42",
+                attendance_type="number",
+            )
+        )
+
+        # JSONL branch: exactly one log() call carrying the account identity.
+        self.assertEqual(len(log.calls), 1)
+        call = log.calls[0]
+        self.assertEqual(call["event"], "rollcall_submission")
+        self.assertEqual(call["status"], "confirmed")
+        self.assertEqual(call["rollcall_id"], "42")
+        self.assertEqual(call["rollcall_type"], "number")
+        self.assertEqual(call["extra"]["profile"], "s1")
+        self.assertEqual(call["extra"]["provider_key"], "thu")
+
+        # Console branch: exactly one permanent line identifying account + event.
+        self.assertEqual(len(console.lines), 1)
+        self.assertIn("s1", console.lines[0])
+        self.assertIn("number 12 confirmed", console.lines[0])
+
+    def test_default_writers_append_real_daily_jsonl_record(self) -> None:
+        import contextlib
+        import io
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from tron_roll_call_hero.runtime_events import account_event
+        from tron_roll_call_hero.runtime_services import LoggingEventSink
+
+        original_path = tron.PATH
+        original_enable = tron.CONFIG["config"]["enable_log"]
+        with tempfile.TemporaryDirectory() as tmp:
+            tron.PATH = Path(tmp)
+            tron.CONFIG["config"]["enable_log"] = True
+            try:
+                sink = LoggingEventSink()  # real logging_runtime.log / log_print
+                with contextlib.redirect_stdout(io.StringIO()):
+                    sink.emit(
+                        account_event(
+                            "rollcall_submission",
+                            profile="s9",
+                            provider_key="thu",
+                            status="confirmed",
+                            message="radar ok",
+                            rollcall_id="77",
+                        )
+                    )
+                log_path = tron.daily_log_path()
+                records = [
+                    json.loads(line)
+                    for line in log_path.read_text(encoding="utf-8").splitlines()
+                ]
+            finally:
+                tron.PATH = original_path
+                tron.CONFIG["config"]["enable_log"] = original_enable
+
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record["event"], "rollcall_submission")
+        self.assertEqual(record["status"], "confirmed")
+        self.assertEqual(record["rollcall_id"], "77")
+        self.assertEqual(record["profile"], "s9")
+        self.assertEqual(record["provider_key"], "thu")
+
+
 class RuntimeServicesTest(unittest.TestCase):
     def test_bundles_services_with_optional_future_fields(self) -> None:
         config = make_config([{"user": "S1", "passwd": "P", "school": "thu"}])

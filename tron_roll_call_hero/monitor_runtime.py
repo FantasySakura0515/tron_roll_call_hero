@@ -513,11 +513,133 @@ async def monitor_loop(
         await ctx.sleep_or_shutdown(shutdown_event, next_poll_delay)
 
 
+async def worker_status_line_loop(application: ctx.Any, profile: str, shutdown_event: ctx.asyncio.Event) -> None:
+    """Render the live console status line from a single worker's snapshot.
+
+    Mirrors :func:`status_line_loop`, but projects the worker's
+    ``AccountWorkerSnapshot`` onto the legacy ``MONITOR_STATUS`` shape instead of
+    relying on the legacy ``monitor_loop`` to populate it.
+    """
+    if not ctx.console_is_interactive():
+        await shutdown_event.wait()
+        return
+    try:
+        while not shutdown_event.is_set():
+            snapshot = application.snapshot_for(profile)
+            if snapshot is not None:
+                status = ctx.project_worker_status(
+                    snapshot,
+                    next_switch_at=ctx.next_schedule_transition(),
+                    teacher_state=ctx.MONITOR_STATUS.get("teacher_state", ""),
+                )
+                ctx.MONITOR_STATUS.clear()
+                ctx.MONITOR_STATUS.update(status)
+            ctx.render_status_line()
+            try:
+                await ctx.asyncio.wait_for(shutdown_event.wait(), timeout=1.0)
+            except ctx.asyncio.TimeoutError:
+                pass
+    finally:
+        ctx.clear_status_line()
+
+
+async def watch_any_key_to_reload_worker(application: ctx.Any, shutdown_event: ctx.asyncio.Event) -> None:
+    """Interactive press-any-key config edit for the worker path.
+
+    Same affordance as :func:`watch_any_key_to_edit_config`, but reconciles the
+    running workers via ``application.reload`` instead of mutating the global
+    active profile and clearing one profile's cookies. Windows-only (msvcrt);
+    inert elsewhere.
+    """
+    if ctx.os.name != "nt":
+        await shutdown_event.wait()
+        return
+    try:
+        import msvcrt
+    except Exception:
+        await shutdown_event.wait()
+        return
+    while not shutdown_event.is_set():
+        await ctx.asyncio.sleep(0.25)
+        if not msvcrt.kbhit():
+            continue
+        try:
+            msvcrt.getwch()
+        except Exception:
+            pass
+        ctx.log_print("偵測到按鍵，開啟 config.yaml。關閉記事本後會重新載入設定。")
+        with ctx.pause_status_line():
+            opened = await ctx.asyncio.to_thread(ctx.open_config_in_legacy_notepad, ctx.CONFIG_PATH, wait=True)
+        if not opened.get("ok"):
+            ctx.log_print("無法開啟舊版記事本: {}".format(opened.get("status")))
+            continue
+        ctx.reload_config_after_editor()
+        report = await application.reload(
+            ctx.CONFIG, now=ctx.effective_config_now_value(ctx.CONFIG) or None
+        )
+        if getattr(report, "ok", False):
+            ctx.log_print("設定已重新載入並套用到帳號 worker。")
+        else:
+            ctx.log_print("設定重新載入失敗：{}".format(getattr(report, "reason", "unknown")))
+
+
+async def run_single_account_via_worker(
+    shutdown_event: ctx.Any,
+    *,
+    input_enabled: bool=False,
+    ignore_attendance_rate_gate: ctx.Optional[bool]=None,
+) -> None:
+    """Run the resolved account(s) through the AccountWorker supervisor.
+
+    Phase 2.8 single-account path: instead of the legacy global ``monitor_loop``,
+    build a single-member ``MonitorApplication`` so each account owns its own
+    session, cookies, and runtime state. Worker events are dual-written to the
+    legacy daily JSONL log and console via ``LoggingEventSink``. This path reads
+    no global active profile and never calls ``switch_profile``.
+
+    When ``input_enabled`` is set, a snapshot-driven status line and a
+    press-any-key config-reload watcher run alongside the supervisor.
+    """
+    from tron_roll_call_hero.application_runtime import MonitorApplication
+    from tron_roll_call_hero.runtime_services import LoggingEventSink
+
+    application = MonitorApplication(
+        ctx.CONFIG,
+        base_dir=ctx.BASE_DIR,
+        event_sink=LoggingEventSink(),
+        ignore_attendance_rate_gate=ignore_attendance_rate_gate,
+    )
+    now = ctx.effective_config_now_value(ctx.CONFIG) or None
+    report = await application.start(now)
+    for warning in report.warnings:
+        ctx.log_print(warning)
+    ctx.record_monitor_runtime('running', heartbeat=True)
+    profile = report.started[0] if report.started else (now or "")
+    try:
+        if input_enabled:
+            tasks = [
+                ctx.asyncio.create_task(worker_status_line_loop(application, profile, shutdown_event)),
+                ctx.asyncio.create_task(watch_any_key_to_reload_worker(application, shutdown_event)),
+            ]
+            try:
+                await shutdown_event.wait()
+            finally:
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                await ctx.asyncio.gather(*tasks, return_exceptions=True)
+        else:
+            await shutdown_event.wait()
+    finally:
+        await application.stop()
+
+
 async def app_main(
     *,
     input_enabled: bool=True,
     external_shutdown_event: ctx.Any=None,
     ignore_attendance_rate_gate: ctx.Optional[bool]=None,
+    worker_enabled: bool=True,
 ) -> None:
     ctx.bootstrap_config()
     shutdown_event = external_shutdown_event or ctx.asyncio.Event()
@@ -530,6 +652,16 @@ async def app_main(
         session_kwargs['timeout'] = timeout
     async with ctx.aiohttp.ClientSession(**session_kwargs) as session:
         async with contextlib.AsyncExitStack() as teacher_stack:
+            if worker_enabled:
+                try:
+                    await ctx.run_single_account_via_worker(
+                        shutdown_event,
+                        input_enabled=input_enabled,
+                        ignore_attendance_rate_gate=ignore_attendance_rate_gate,
+                    )
+                finally:
+                    ctx.record_monitor_runtime('stopped', heartbeat=False)
+                return
             try:
                 active_profile = ctx.get_active_profile(ctx.CONFIG)
                 if ctx.cookie_cache_enabled(ctx.CONFIG) and ctx.load_session_cookies(session, ctx.BASE_DIR, active_profile.name):

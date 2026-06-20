@@ -2165,7 +2165,9 @@ class TronMonitorLoopTest(unittest.IsolatedAsyncioTestCase):
             ) as client_session_mock,
             patch.object(tron, "monitor_loop", AsyncMock(return_value=None)),
         ):
-            await tron.app_main(input_enabled=False)
+            # This test pins the legacy session/timeout construction, which lives
+            # on the monitor_loop branch; keep it off the worker path.
+            await tron.app_main(input_enabled=False, worker_enabled=False)
 
         self.assertEqual(client_session_mock.call_args.kwargs["timeout"], "timeout-marker")
         self.assertEqual(client_session_mock.call_args.kwargs["connector"], "connector-marker")

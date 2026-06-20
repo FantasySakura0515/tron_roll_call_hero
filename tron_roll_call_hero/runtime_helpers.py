@@ -719,6 +719,41 @@ def format_countdown(seconds: Any) -> str:
     return "{:02d}:{:02d}:{:02d}".format(hours, minutes, secs)
 
 
+_WORKER_PHASE_TO_LEGACY = {
+    "monitoring": "monitoring",
+    "standby": "standby",
+    "starting": "logging_in",
+    "logging_in": "logging_in",
+    "waiting_login": "logging_in",
+    "manual_cookie_required": "logging_in",
+    "login_failed": "logging_in",
+    "crashed": "paused",
+    "stopping": "paused",
+    "stopped": "paused",
+}
+
+
+def project_worker_status(snapshot: Any, *, next_switch_at: Any = None, teacher_state: str = "") -> dict:
+    """Project an ``AccountWorkerSnapshot`` onto the legacy ``MONITOR_STATUS``
+    dict shape so the existing :func:`build_monitor_status_line` renderer can
+    display a single-account worker without a second code path.
+
+    The worker's richer phase vocabulary collapses onto the four legacy phases
+    (monitoring / standby / logging_in / paused). ``next_switch_at`` (the next
+    schedule transition) and ``teacher_state`` are supplied by the caller, which
+    knows the operating schedule and the teacher coordinator.
+    """
+    raw_phase = str(getattr(snapshot, "phase", "") or "")
+    return {
+        "phase": _WORKER_PHASE_TO_LEGACY.get(raw_phase, "monitoring"),
+        "check_count": int(getattr(snapshot, "poll_count", 0) or 0),
+        "rollcall_status": str(getattr(snapshot, "last_check_status", "") or ""),
+        "detail": str(getattr(snapshot, "last_error_code", "") or ""),
+        "next_switch_at": next_switch_at,
+        "teacher_state": teacher_state,
+    }
+
+
 def build_monitor_status_line(status: Any, now: Any) -> str:
     """Build the single-line monitor status string from a status snapshot.
 
