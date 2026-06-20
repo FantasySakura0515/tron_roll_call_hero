@@ -100,6 +100,38 @@ class TronFacadeTests(unittest.TestCase):
         self.assertNotIn("secretpw", blob)
         self.assertNotIn("otherpw", blob)
 
+    def test_print_status_lists_multiple_accounts(self) -> None:
+        import contextlib
+        import io
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tron.BASE_DIR = Path(temp_dir)
+            tron.CONFIG.clear()
+            tron.CONFIG.update(
+                tron.normalize_config(
+                    tron.merge_simple_and_advanced_config(
+                        {
+                            "now": "",
+                            "accounts": [
+                                {"user": "s1", "passwd": "p1", "school": "thu"},
+                                {"user": "s2", "passwd": "p2", "school": "thu"},
+                            ],
+                            "groups": [],
+                            "operating": {},
+                        },
+                        {},
+                    )
+                )
+            )
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                status_reports.print_status(json_output=False)
+            out = buf.getvalue()
+
+        self.assertIn("Accounts (", out)
+        # One bullet line per configured account (>= the two real ones).
+        self.assertGreaterEqual(out.count("\n  - "), 2)
+
     def test_base_dir_assignment_visible_through_runtime_modules(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             tron.BASE_DIR = Path(temp_dir)

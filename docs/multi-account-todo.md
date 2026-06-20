@@ -1,7 +1,7 @@
 # 多帳號重構 TODO
 
-- 狀態：Planning
-- 日期：2026-06-09
+- 狀態：Phase 1–4 + Phase 2.8 + Phase 5 大部分完成（2026-06-20 更新）
+- 日期：2026-06-09（初版）／2026-06-20（進度更新）
 - 架構文件：[multi-account-framework.md](architecture/multi-account-framework.md)
 - ADR：[0001-multi-account-runtime.md](architecture/0001-multi-account-runtime.md)
 
@@ -31,14 +31,15 @@
 - QR 自動執行（teacher coordinator 接 supervisor）+ Discord 手動 fallback
 - Docker / systemd 部署交付物與部署指南（docs/deploy.md）
 
-尚未完成的是「真正同時監控與簽到」：
+「真正同時監控與簽到」已完成（2026-06-20）：
 
-- Number/Radar/QR executor 尚未全面 account-scoped
-- `AccountWorker` 尚未建立
-- `AccountSupervisor` 尚未建立
-- `app_main()` 尚未改走 worker/supervisor
-- fake server 尚未支援多 authenticated students
-- client/console/dashboard/bot 尚未接 live supervisor
+- Number/Radar/QR executor 全面 account-scoped ✓
+- `AccountWorker` / `AccountSupervisor` / `MonitorApplication` 已建立 ✓
+- `app_main()` 預設改走 worker/supervisor（`worker_enabled` 預設 ON，Phase 2.8）✓
+- fake server 支援多 authenticated students ✓
+- dashboard / bot 接 live supervisor ✓；console（單帳號狀態行）投影 worker snapshot ✓；CLI `tron status` 顯示 per-account ✓
+
+剩餘（非阻塞）：群組互動式 console、CLI 文字版 partial-failure 標示、PyInstaller 在 Windows 的 frozen-build smoke（需實機）、本機桌面 GUI（`app serve` 維持唯讀）。
 
 ## 優先順序守則
 
@@ -574,7 +575,7 @@ Phase 4 驗收：
 
 測試：
 
-- [ ] two-account snapshot formatting（CLI 文字版多帳號格式測試尚未）
+- [x] two-account snapshot formatting（`test_print_status_lists_multiple_accounts`）
 - [x] one failed / one healthy status（`test_partial_login_failure_does_not_stop_group`）
 - [x] skipped account warning formatting（dashboard 渲染 skipped + `test_dashboard_page_renders_skipped_accounts`）
 - [x] status JSON secret redaction（`test_status_report_includes_redacted_multi_account_section`）
@@ -654,15 +655,15 @@ Phase 4 驗收：
 
 - [x] README 修正現有「多帳號」描述（2026-06-20：CLI 與 bot 同套 supervisor，真並行）
 - [x] 寫 group 實際執行方式（`now: class A` 同時啟動全部 worker）
-- [ ] 寫 per-account status/partial failure（status 已含 accounts；partial failure 文字範例待補）
-- [ ] 寫 mixed-provider 限制
-- [ ] 寫 migration 注意事項
-- [ ] release notes
+- [x] 寫 per-account status/partial failure（release-notes.md「Partial failure」段；status 含 accounts）
+- [x] 寫 mixed-provider 限制（release-notes.md「Mixed-provider 限制」段）
+- [x] 寫 migration 注意事項（release-notes.md「Migration」段）
+- [x] release notes（`docs/release-notes.md`）
 - [x] 文件明確區分「多 profile 管理」與「真正多帳號並行監控」
 - [x] 文件列出目前支援的簽到類型：Number/Radar/Manual QR/Teacher QR
-- [ ] 文件列出 partial failure 範例
+- [x] 文件列出 partial failure 範例（release-notes.md）
 - [x] 文件列出 bot/client 指令範例（deploy.md / bot-setup.md：status/force/reauth/qr）
-- [ ] 文件列出舊 state/cookie migration 行為
+- [x] 文件列出舊 state/cookie migration 行為（release-notes.md「Migration」段）
 
 建議 commits：
 
@@ -676,26 +677,26 @@ docs: document real multi-account monitoring
 
 Phase 5 驗收：
 
-- [ ] config reload 不需重啟整個程式
-- [ ] Bot 與 console 使用同一 supervisor
-- [ ] Windows release smoke 通過
-- [ ] README 與實際行為一致
-- [ ] release checklist 通過
+- [x] config reload 不需重啟整個程式（`config_reload_watcher` + 互動編輯，皆走 `app.reload()`）
+- [x] Bot 與 console 使用同一 supervisor（`MonitorApplication`/`AccountWorker`；CLI worker 路徑與 bot `--supervisor` 同源）
+- [ ] Windows release smoke 通過（需 Windows frozen build，本機無法驗）
+- [x] README 與實際行為一致（2026-06-20 修正，新增 release-notes.md）
+- [ ] release checklist 通過（除 Windows smoke 外皆達成）
 
 ## 最終 Definition of Done
 
-- [ ] `now:class A` 會啟動群組所有有效帳號
-- [ ] 每帳號有獨立 session、cookie、runtime state
-- [ ] Number 每帳號 independently confirmed
-- [ ] Radar 每帳號 independently confirmed
-- [ ] Manual QR 每帳號 independently confirmed
-- [ ] Teacher QR single-flight 且每帳號 independently confirmed
-- [ ] 一帳號失敗不停止其他帳號
-- [ ] mixed-provider group 有測試
-- [ ] config reload 有測試
-- [ ] shutdown 無未關閉 session/task
-- [ ] 日誌、通知、狀態不洩漏 secret
-- [ ] 原有單帳號流程相容
-- [ ] 完整 unittest suite 通過
-- [ ] release checklist 通過
-- [ ] README 不再把 planned fan-out 描述成已完成
+- [x] `now:class A` 會啟動群組所有有效帳號（`MonitorApplication.start` E2E：兩帳號各自 confirmed）
+- [x] 每帳號有獨立 session、cookie、runtime state
+- [x] Number 每帳號 independently confirmed（group number E2E）
+- [x] Radar 每帳號 independently confirmed（group radar E2E）
+- [x] Manual QR 每帳號 independently confirmed（qr_fanout E2E）
+- [x] Teacher QR single-flight 且每帳號 independently confirmed（teacher coordinator + worker E2E）
+- [x] 一帳號失敗不停止其他帳號（`test_partial_login_failure_does_not_stop_group`）
+- [x] mixed-provider group 有測試（registry/factory 依各 spec provider 推導）
+- [x] config reload 有測試（reconcile 測試 + `config_reload_watcher` 測試）
+- [x] shutdown 無未關閉 session/task（worker/supervisor shutdown 測試）
+- [x] 日誌、通知、狀態不洩漏 secret（snapshot/event/status JSON 皆驗證）
+- [x] 原有單帳號流程相容（`monitor_loop` 保留；`worker_enabled=False` 可達；legacy 測試全綠）
+- [x] 完整 unittest suite 通過（846 項）
+- [ ] release checklist 通過（除 Windows frozen-build smoke 外皆達成）
+- [x] README 不再把 planned fan-out 描述成已完成
