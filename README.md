@@ -8,27 +8,9 @@
 
 ---
 
-## Fork 來源（這是一個衍生專案）
-
-本專案是一個 **fork**，並非從零開始。直接 fork 來源（上游）為：
-
-- **上游 repo**：[hot-YUser/auto-rollcall-thu-tronclass](https://github.com/hot-YUser/auto-rollcall-thu-tronclass)
-- **上游作者**：hot-YUser
-- **上游授權**：GNU AGPL-3.0-or-later
-
-上游提供了整套核心：數字 / 雷達 / QR 點名的偵測與分流、跨校 provider、假點名門檻，以及雷達的 WGS84 全球定位備援求解器。本 fork 在這個基礎上繼續開發。
-
-完整衍生鏈（fork 來源往上追）：
-
-- [silvercow002/tronclass-script](https://github.com/silvercow002/tronclass-script)（最初源頭，MIT 授權）
-- → [hot-YUser/auto-rollcall-thu-tronclass](https://github.com/hot-YUser/auto-rollcall-thu-tronclass)（改以 AGPL-3.0 授權，本專案的直接上游）
-- → 本專案（衍生自 AGPL 上游，沿用 AGPL-3.0）
-
-> 💡 上游當時的 Python 套件名是 `troTHU`，指令是 `python -m troTHU.tron`。本 fork 已將套件更名為 `tron_roll_call_hero`，所以下面所有指令都是 `python -m tron_roll_call_hero.tron`。
-
----
-
 ## 這個工具可以幹嘛
+
+三種點名，偵測到就自動替你簽到：
 
 - ✅ **數字點名** — 完整支援。已經過無數次實際課堂驗收與打磨，是成熟、穩定的全自動完成版：偵測到點名 → 自動拿到點名碼 → 自動簽到，全程零操作。
 - ✅ **雷達點名** — 完整支援。同樣經過大量實戰驗收，偵測到雷達點名後會自動完成定位簽到，不需要你開地圖、不需要對座標。就算哪天伺服器補掉了現在的捷徑，背後還有一套自己寫的**「全球定位演算法」（WGS84 多點定位）**能反推教室座標頂上，不會因此失效。
@@ -36,11 +18,16 @@
 
 > 順帶一提，它不會「搶當第一個簽到的人」：偵測到點名後，會先確認這是一場真的、全班性的點名（已經有一定比例的同學陸續簽到）才出手，避免老師只是手滑誤開、又馬上關掉的「假點名」也把你簽進去。這是一道貼心的容錯保險，預設就開著、你什麼都不用設。
 
-關於 QR：學生端 API 不會提供 QR 的 `data` token，所以未設定教師帳號時，程式只會提示你貼上 QR 內容或嘗試剪貼簿輔助。教師輔助模式會使用你自備的教師帳號即時發起一場 QR 點名取得 `data`，再用學生帳號送出；教師登入失敗不會影響數字 / 雷達點名。
+除了點名本身，還有：
+
+- **真多帳號並行** — `now: class A` 一次啟動整組帳號，各自獨立 session / cookie / 狀態，一帳號失敗不影響其他；本機 CLI 與 Discord bot 走同一套 worker supervisor。
+- **聊天機器人** — Discord 可**雙向控制**，LINE / Telegram 通知；可用 Docker 一鍵 **24/7 部署**。
+- **本機唯讀面板** — 隨時看每個帳號的狀態，但不會送點名、不會改帳號。
+- **跨校 provider** — 七個 TronClass 站台共用同一套點名引擎（見下表）；時區排程、多時段、去敏日誌、環境自我檢查都內建。
 
 ### 支援的學校（provider）
 
-四個 provider 都已是可日常使用的成熟狀態，數字 / 雷達 / QR / 教師輔助全部支援；差別只在「怎麼登入」：
+七個 provider 都已是可日常使用的成熟狀態，數字 / 雷達 / QR / 教師輔助全部支援；差別只在「怎麼登入」：
 
 | 學校 / 站台 | `school` 代碼 | 網域 | 登入方式 |
 | --- | --- | --- | --- |
@@ -54,13 +41,15 @@
 
 `school` 大小寫不分，也吃中文別名（`東海`、`輔仁`、`淡江`、`中山`、`朝陽`、`海大`、`官方` 等）。
 
-**中山、朝陽、海大是最新加入的**:中山/朝陽與東海同屬 WisdomGarden Keycloak CAS,直接重用 `thu_cas`;海大 (NTOU) 是 Apereo CAS **＋圖形驗證碼**(同輔大,重用 `tronclass_form_captcha`;裝 `.[ocr]` 自動辨識、否則人工輸入),且它的 CAS 主機(`tccas.ntou.edu.tw`)與 app 主機不同。三校的登入流程都已查證、離線測試通過,但**尚未用真實帳號跑過端到端登入**;歡迎這幾校的同學回報實際結果。
+**中山、朝陽、海大是最新加入的**：中山 / 朝陽與東海同屬 WisdomGarden Keycloak CAS，海大是 Apereo CAS ＋圖形驗證碼。三校登入流程都已查證、離線測試通過，但**尚未用真實帳號跑過端到端登入**，歡迎這幾校的同學回報。
 
 > 補充一個常見的誤會：TronClass 是一套被很多學校採用的校園系統，但**各校上架時都會自己取名**——在東海它叫「iLearn」、在淡江叫「iClass」、TronClass 公有雲官網則直接叫「TronClass」。名字不一樣，骨子裡卻是同一套 API；所以同一套登入＋點名流程，只要換掉網域和登入方式，就能套到不同學校。
 
 ---
 
 ## 怎麼開始用
+
+依你的情境選一條路：只想用 → Windows；想改程式 → 原始碼；要 24/7 多帳號 → Discord bot。
 
 ### 我只是想用（Windows，最簡單）
 
@@ -79,9 +68,7 @@ python -m pip install -r requirements.txt
 python -m tron_roll_call_hero.tron
 ```
 
-就這樣。一樣是啟動即監控、按任意鍵用記事本開 `config.yaml`。
-
-如果你要放在工作排程器或背景服務、不希望它監聽按鍵：
+就這樣。一樣是啟動即監控、按任意鍵用記事本開 `config.yaml`。要放進工作排程器或背景服務、不希望它監聽按鍵時，加 `--no-input`：
 
 ```bash
 python -m tron_roll_call_hero.tron run --no-input
@@ -89,24 +76,22 @@ python -m tron_roll_call_hero.tron run --no-input
 
 > 啟動後它**不會清螢幕、不會跳全螢幕介面**，只會在視窗裡一行一行印出目前在做什麼（正在登入、目前時段、偵測到點名、簽到成功…），讓你一眼看出它還活著。
 >
-> 輔大（FJU）帳號建議多裝一個 OCR 套件來自動辨識登入驗證碼：`python -m pip install -e .[ocr]`（沒裝也能用，只是要手動輸入驗證碼）。
+> 輔大（FJU）／海大（NTOU）帳號建議多裝一個 OCR 套件來自動辨識登入驗證碼：`python -m pip install -e .[ocr]`（沒裝也能用，只是要手動輸入驗證碼）。
 
 ### 在伺服器上用 Discord bot 跑（推薦：真多帳號、24/7）
 
 把它部署到一台一直開著的機器，用 Discord bot 控制多個帳號同時自動點名——數字／雷達全自動，QR 在設好教師帳號時也全自動（否則用 Discord `qr` 指令手動送）。**預設走 Discord Gateway 長連線，不需要公開網址。**
 
 ```bash
-cp config.example.yaml config.yaml   # 填多帳號 + 時段（THU / FJU / TKU 都可）
+cp config.example.yaml config.yaml   # 填多帳號 + 時段
 cp .env.example .env                  # 填 Discord bot 金鑰
-docker compose up -d                  # 一鍵起服務，crash/重開自動拉起（restart: unless-stopped）
+docker compose up -d                  # 一鍵起服務，crash／重開自動拉起（restart: unless-stopped）
 docker compose logs -f
 ```
 
-容器內實際跑的是 `bot discord-gateway --supervisor`（多帳號 supervisor 模式）。完整步驟（建 Discord bot、systemd 替代方案、指令用法、安全）見 **[docs/deploy.md](docs/deploy.md)**；版本變更、升級遷移、跨校 provider 與 partial-failure 行為見 **[docs/release-notes.md](docs/release-notes.md)**。
+容器內實際跑的是 `bot discord-gateway --supervisor`（多帳號 supervisor 模式）。每帳號獨立 session／狀態、失敗不互相影響、worker 會遞增退避自動重連；預設帶 15% 假點名門檻；Docker image 預設裝 ddddocr（驗證碼自動登入，要關掉用 `--build-arg INSTALL_OCR=0`）。
 
-- 真正多帳號並行：每帳號獨立 session / cookie / 狀態，一帳號失敗不影響其他；worker 會用遞增退避自動重連。
-- 預設帶 15% 假點名門檻（等班上開始有人簽到才出手）。
-- Docker image 預設裝 ddddocr，輔大（FJU）帳密 + 圖形驗證碼可自動登入（要關掉用 `--build-arg INSTALL_OCR=0`）。
+完整步驟（建 Discord bot、systemd 替代方案、安全）見 **[docs/deploy.md](docs/deploy.md)**；版本變更、升級遷移、跨校 provider 與 partial-failure 行為見 **[docs/release-notes.md](docs/release-notes.md)**。
 
 ---
 
@@ -192,23 +177,16 @@ operating:
 填密碼那關如果不想把明碼直接寫進 `config.yaml`，有幾種做法：
 
 - **環境變數**（單帳號最快）：`TRON_USER` / `TRON_PASS`（教師帳號是 `TRON_TEACHER_USER` / `TRON_TEACHER_PASS`）。
-- **系統金鑰圈**：安裝 `.[keyring]` 後改用 OS keyring 保存（見下方選用功能）。
+- **系統金鑰圈**：安裝 `.[keyring]` 後改用 OS keyring 保存。
 - 解析優先序：執行期傳入 > 環境變數 > keyring > `config.yaml`。
 
 ### 改完設定後
 
 填好帳密、存檔、關掉記事本，程式就會自動重新讀取（背景服務也有設定檔 watcher）。如果你改了 `now`，它會清掉目前的登入狀態並切換到新帳號或新群組。
 
-### 常用設定指令
+### 進階檔 `config.advanced.yaml`
 
-```bash
-python -m tron_roll_call_hero.tron config show       # 看目前讀到的設定
-python -m tron_roll_call_hero.tron config doctor      # 檢查設定有沒有問題
-python -m tron_roll_call_hero.tron config advanced    # 用記事本打開 config.advanced.yaml
-python -m tron_roll_call_hero.tron config compact --write   # 把舊版設定檔整理成新版格式（會先自動備份）
-```
-
-`config.advanced.yaml` 是真正的 YAML，預設是空的，放時區、number/radar 細部調整、Bot 設定等進階項。例如：
+這個檔才是真正的 YAML，預設是空的，放時區、number / radar 細部調整、Bot 設定等進階項。沒特殊需求完全不用碰。例如：
 
 ```yaml
 time:
@@ -221,6 +199,8 @@ radar:
   strategy: empty_answer               # empty_answer 或 global_wgs84
 ```
 
+用 `config show` 看目前讀到的設定、`config doctor` 檢查問題、`config advanced` 用記事本打開它（指令詳見[下方速查](#指令速查)）。
+
 ---
 
 ## 聊天機器人通知（選用，但很好用）
@@ -229,21 +209,9 @@ radar:
 
 ### Discord（推薦，可雙向控制）
 
-部署服務時**預設、也推薦走 Gateway 長連線**——掛著一條到 Discord 的連線即可，**不需要公開網址**，最適合放在家用機 / VPS 24/7 跑：
+部署服務時**預設、也推薦走 Gateway 長連線**——掛著一條到 Discord 的連線即可，**不需要公開網址**，最適合放在家用機 / VPS 24/7 跑。Discord 可以**雙向操作**：查狀態、`start` / `stop`、強制檢查、重新登入、貼 QR 內容簽到等（指令清單用 `bot discord-schema` 看）。
 
-```bash
-python -m tron_roll_call_hero.tron bot discord-gateway --supervisor   # 長連線 + 多帳號 supervisor（Docker 預設）
-python -m tron_roll_call_hero.tron bot discord-schema --json          # 看要註冊哪些 slash 指令
-python -m tron_roll_call_hero.tron bot discord-sync --apply            # 把 slash 指令同步到 Discord（預設 dry-run）
-```
-
-Discord 可以**雙向操作**：查狀態、`start` / `stop`、強制檢查、重新登入、貼 QR 內容簽到等（指令清單用 `discord-schema` 看）。
-
-如果你偏好不掛長連線、改用 webhook，也保留了 **HTTP Interactions** 模式（需要一個對外的 HTTPS 端點）：
-
-```bash
-python -m tron_roll_call_hero.tron bot serve --adapter discord        # 本機起 webhook 服務（預設 127.0.0.1）
-```
+如果你偏好不掛長連線、改用 webhook，也保留了 **HTTP Interactions** 模式（`bot serve --adapter discord`，需要一個對外的 HTTPS 端點）。相關指令見[下方速查](#指令速查)。
 
 ### LINE
 
@@ -276,30 +244,32 @@ python -m tron_roll_call_hero.tron bot serve --adapter generic
 
 ---
 
-## 其他功能與常用指令
+## 指令速查
 
-`python -m tron_roll_call_hero.tron <command>`，常用的有：
+原始碼一律 `python -m tron_roll_call_hero.tron <...>`；Windows 版用 `tron-roll-call-hero.exe <...>` 同樣的子指令。
 
-- **多帳號 / 群組（真正並行）**：`now: <學號>` 監控單一帳號；`now: class A` 會**同時**啟動群組內每個有效帳號，各自獨立 session / cookie / 狀態，一帳號失敗不影響其他，數字／雷達／QR 各自簽到。本機 CLI（`tron run`）與 Discord bot 走的是同一套 supervisor（worker 架構）。
-- **帳號管理**：`account list` / `account add <名稱>` / `account switch <名稱>` / `account state` / `account doctor`，以及 bot 綁定 `account bind` / `account unbind`。
-- **狀態與診斷**：`status --json` 印出本機狀態；`doctor` 一鍵檢查環境、設定、登入來源；`dashboard` 開一個會更新的輕量狀態面板；`logs tail` / `logs summarize` / `logs export` 看與打包（去敏）日誌。
-- **課程與 provider**：`courses` 探索本學期課程；`provider list` / `provider show` 看支援的學校與能力旗標。
-- **QR 工具**：`qr <payload>`（直接送）、`qr paste`（剪貼簿）、`qr image <檔案>`（從圖片解碼，需 `.[qr-image]`）、`qr scan`（本機掃描器）、`qr pending`（列出待簽）。
-- **教師端工具**：`teacher rollcall create/start/stop`（需設教師帳號）。
-- **本機唯讀面板**：`app serve --open` 在 localhost 開一個唯讀小面板，只能「看」狀態（不會送點名、不會匯入 cookie、不會改帳號）。
-- **時區排程**：`config.advanced.yaml` 裡可設 IANA 時區（如 `Asia/Taipei`），每天可有多個時段。
+- **監控**：`run`（啟動即監控）、`run --no-input`（背景／排程，不接按鍵）、`run --ignore-attendance-rate-gate`（這一輪略過 15% 門檻）
+- **設定**：`config show`、`config doctor`、`config advanced`、`config compact --write`（整理舊版設定，會先備份）
+- **帳號**：`account list`、`account add <名>`、`account switch <名>`、`account state`、`account doctor`、`account bind <adapter> ...`、`account unbind`
+- **狀態 / 診斷**：`status --json`、`doctor`、`dashboard`（會更新的輕量面板）、`logs tail` / `logs summarize` / `logs export`（去敏日誌）
+- **課程 / 學校**：`courses`（探索本學期課程）、`provider list`、`provider show`
+- **QR**：`qr <payload>`（直接送）、`qr paste`（剪貼簿）、`qr image <檔案>`（從圖片解碼，需 `.[qr-image]`）、`qr scan`（本機掃描器）、`qr pending`（列出待簽）
+- **教師端**：`teacher rollcall create` / `start` / `stop`（需設教師帳號）
+- **Bot**：`bot discord-gateway --supervisor`、`bot discord-schema`、`bot discord-sync --apply`、`bot serve --adapter <discord|line|generic>`
+- **本機唯讀面板**：`app serve --open`（只能看狀態，不送點名、不匯入 cookie、不改帳號）
+- **打包 / 發佈**：`release-build --dry-run`、`release-build --execute`
 
 ---
 
 ## 原理：它到底是怎麼自動簽到的？
 
-這段用白話講「為什麼做得到」。本質上，TronClass 這套系統把一些**本來不該讓學生拿到的東西，透過學生自己就能呼叫的 API 漏掉了**，這個工具就是把這些漏洞自動化而已。
+這段用白話講「為什麼做得到」。本質上，TronClass 這套系統把一些**本來不該讓學生拿到的東西，透過學生自己就能呼叫的 API 漏掉了**，這個工具就是把這些漏洞自動化而已。（想看實際 API 端點，見下一節「[技術細節](#技術細節給想複製到其他學校的開發者)」。）
 
 ### 偵測到點名後，為什麼先等一下再簽
 
 預設情況下，程式偵測到點名後**不會立刻送出**，而是先回查這堂課的簽到率，等到「全班到課率達 15%」（已經有 15% 的同學簽到）才出手。這是一道刻意設計的容錯保險：萬一老師只是手滑誤開、開了又馬上關掉，這種根本沒人簽的「假點名」就不會把你簽進去；等到班上開始有人陸續簽到、確認是真的在點名了，程式才動作。數字 / 雷達 / QR 三種都適用（QR 會在等待期間先用教師帳號把點名預備好，門檻一過立刻送出）。
 
-如果你不想要這道保險、希望一偵測到就立刻簽到，到 `config.advanced.yaml` 把 `monitor.ignore_attendance_rate_gate` 設成 `true` 即可（開發 / 排程場景也可以用 `python -m tron_roll_call_hero.tron run --ignore-attendance-rate-gate` 臨時關閉這一輪）。
+如果你不想要這道保險、希望一偵測到就立刻簽到，到 `config.advanced.yaml` 把 `monitor.ignore_attendance_rate_gate` 設成 `true` 即可（開發 / 排程場景也可以用 `run --ignore-attendance-rate-gate` 臨時關閉這一輪）。
 
 ### 數字點名：點名碼其實藏在 API 回應裡
 
@@ -331,7 +301,7 @@ QR 點名的學生端 API 只接受 `data` + `deviceId`，但**不會**把 `data
 
 ## 技術細節（給想複製到其他學校的開發者）
 
-TronClass 是不少學校共用的底層校園系統（各校自行命名上架：東海＝iLearn、淡江＝iClass、公有雲＝TronClass…），下面整理核心 API 與做法，方便其他同樣用 TronClass 的學校快速理解、自行實作。除了 THU / FJU / TKU，這套 runtime 也能套用在 **TronClass 公有雲官網**以及其他基於 TronClass 的學校（換掉 base URL 與登入流程即可）。
+上一節講「為什麼做得到」，這節是對應的 **API 參考**：整理核心端點與做法，方便其他同樣用 TronClass 的學校快速理解、自行實作。除了 THU / FJU / TKU，這套 runtime 也能套用在 **TronClass 公有雲官網**以及其他基於 TronClass 的學校（換掉 base URL 與登入流程即可）。
 
 > 端點以 `{base}` 代表學校的 TronClass 網域（東海 `https://ilearn.thu.edu.tw`、輔大 `https://elearn2.fju.edu.tw`、淡江 `https://iclass.tku.edu.tw`…）。所有請求都帶登入後的 session cookie。
 
@@ -411,10 +381,10 @@ python -m pip install -e .[packaging]   # PyInstaller 打包
 python -m pip install -e .[browser]     # Playwright（登入頁改版時的後備登入）
 python -m pip install -e .[keyring]     # 用系統金鑰圈存帳密
 python -m pip install -e .[qr-image]    # 從圖片解碼 QR（opencv + Pillow）
-python -m pip install -e .[ocr]         # 輔大（FJU）登入驗證碼自動辨識（ddddocr）
+python -m pip install -e .[ocr]         # 輔大 / 海大登入驗證碼自動辨識（ddddocr）
 ```
 
-> 輔大採帳密自動登入：登入頁圖形驗證碼會先用 ddddocr 自動辨識，未安裝
+> 帳密自動登入的學校（FJU / NTOU）：登入頁圖形驗證碼會先用 ddddocr 自動辨識，未安裝
 > `.[ocr]` 或辨識失敗時，互動式 CLI 會請你手動輸入驗證碼；背景監控辨識不出
 > 則回報 `captcha_required`，不偽裝成功。
 
@@ -436,18 +406,11 @@ python -m tron_roll_call_hero.tron release-build --dry-run --json
 
 - **QR 教師輔助需要可登入且可發起點名的教師帳號**；未設定或登入失敗時，只保留手動貼上 / 剪貼簿輔助。
 - **Telegram 只做單向通知**，不接收指令；雙向控制請用 Discord。
+- **中山 / 朝陽 / 海大尚未用真實帳號端到端驗證**（登入流程已查證、離線測試通過）。
 - 預設的 Windows zip 是精簡包，不內建 Playwright、keyring、QR 影像解碼等選用功能；需要的話請用原始碼安裝對應 extras。
 
 ---
 
 ## 授權
 
-本專案 fork 自 [hot-YUser/auto-rollcall-thu-tronclass](https://github.com/hot-YUser/auto-rollcall-thu-tronclass)，該上游以 **GNU Affero General Public License v3.0 或更新版本（`AGPL-3.0-or-later`）** 授權（其更上游 [silvercow002/tronclass-script](https://github.com/silvercow002/tronclass-script) 原為 MIT，於上游 fork 時改採 AGPL）。
-
-作為其衍生作品，本 fork 同樣以 **AGPL-3.0-or-later** 釋出（完整條款見 [LICENSE](LICENSE)）：
-
-- 你可以自由使用、研究、修改、散布本專案。
-- 若你**散布**本專案（或其修改版），或將修改版**透過網路提供服務**，必須依 AGPL 條款向使用者提供對應的完整原始碼。
-- 衍生作品必須保留相同授權，並標示出對原始碼的修改與來源。
-
-致謝：核心點名 runtime、跨校 provider 與 WGS84 全球定位求解器源自上游 hot-YUser 及更上游 silvercow002 的原始工作。
+本專案衍生自 [hot-YUser/auto-rollcall-thu-tronclass](https://github.com/hot-YUser/auto-rollcall-thu-tronclass)（更上游 [silvercow002/tronclass-script](https://github.com/silvercow002/tronclass-script)），已大幅改寫，依上游採 **GNU AGPL-3.0-or-later** 釋出，完整條款見 [LICENSE](LICENSE)。散布或以網路服務提供修改版時，須依 AGPL 提供對應原始碼並保留相同授權。
