@@ -26,17 +26,6 @@
 
 > 💡 上游當時的 Python 套件名是 `troTHU`，指令是 `python -m troTHU.tron`。本 fork 已將套件更名為 `tron_roll_call_hero`，所以下面所有指令都是 `python -m tron_roll_call_hero.tron`。
 
-### 本 fork 相對上游的主要改動
-
-- **套件更名**：`troTHU` → `tron_roll_call_hero`（CLI 進入點同步更名）。
-- **真正多帳號並行**：`now: class A` 一次啟動群組內每個有效帳號，各自獨立 session / cookie / 狀態，一帳號失敗不影響其他；本機 CLI（`tron run`）與 Discord bot 走同一套 worker supervisor。
-- **新增輔大（FJU）provider**：帳密 + 圖形驗證碼自動登入（ddddocr OCR，選用），辨識失敗回退人工輸入、不偽裝成功。
-- **再擴充學校**：新增中山 (NSYSU)、朝陽 (CYUT) —— 與東海同屬 WisdomGarden Keycloak CAS，直接重用 `thu_cas`；以及海大 (NTOU) —— Apereo CAS + 圖形驗證碼，重用 `tronclass_form_captcha`（同輔大）。
-- **Discord bot 24/7 部署**：`docker compose up -d` 一鍵起服務、crash 自動拉起、預設走 Gateway 長連線，不需公開網址（見 [docs/deploy.md](docs/deploy.md)）。
-- **設定檔自動重載 watcher**，以及多帳號 worker 的穩定性 / 可觀測性強化。
-
-完整版本變更與升級遷移見 [docs/release-notes.md](docs/release-notes.md)。授權細節見文末「[授權](#授權)」。
-
 ---
 
 ## 這個工具可以幹嘛
