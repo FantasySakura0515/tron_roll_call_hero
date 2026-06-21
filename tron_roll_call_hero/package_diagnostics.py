@@ -11,7 +11,7 @@ PROJECT_VERSION = "1.3a1"
 PROJECT_RELEASE_LABEL = "1.3-alpha.1"
 SPEC_NAME = "tron-roll-call-hero.spec"
 FORBIDDEN_BUNDLE_NAMES = (
-    ".codex-worklog.md",
+    ".worklog.md",
     "config.yaml",
     "config.advanced.yaml",
     "state",

@@ -101,7 +101,7 @@ class PackageDiagnosticsTest(unittest.TestCase):
         self.assertTrue(report["git_hygiene"]["config_local_file_ignored"])
         self.assertNotIn("YOUR_PASSWORD", encoded)
         self.assertNotIn("state/cookies", encoded)
-        self.assertNotIn(".codex-worklog.md", encoded)
+        self.assertNotIn(".worklog.md", encoded)
 
     def test_missing_spec_reports_fail_without_exposing_local_state(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

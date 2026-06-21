@@ -53,16 +53,15 @@ dist/
 *.spec.tmp
 RELEASE_NOTES-v*.md
 
-# Local Codex/user planning material. Do not publish these.
-.codex-worklog.md
+# Local planning material. Do not publish these.
+.worklog.md
 AGENTS.md
-CLAUDE.md
 PLAN.md
 *-promotion-plan.md
 新文件*.txt
 競品分析與上位替代規劃.md
 
-# External reference projects are kept locally for Codex analysis only.
+# External reference projects are kept locally for analysis only.
 其他專案參考/
 
 # Local reverse-engineering reference (decompiled app + web frontend dumps).
