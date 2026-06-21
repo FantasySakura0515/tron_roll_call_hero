@@ -191,6 +191,75 @@ PROVIDERS: Dict[str, ProviderDefinition] = {
         ),
         notes="Public TronClass cloud tenant. Uses the shared TronClass APIs after an email/password login form POST.",
     ),
+    "nsysu": ProviderDefinition(
+        key="nsysu",
+        label="National Sun Yat-sen University TronClass",
+        base_url="https://elearn.nsysu.edu.tw",
+        login_url=(
+            "https://identity.nsysu.edu.tw/auth/realms/nsysu/protocol/cas/login"
+            "?ui_locales=zh-TW&service=https%3A//elearn.nsysu.edu.tw/login&locale=zh_TW"
+        ),
+        auth_flow="thu_cas",
+        status="ready",
+        support_level="ready",
+        capabilities=ProviderCapabilities(
+            number=True,
+            radar=True,
+            qrcode=True,
+            course_discovery=True,
+            teacher_rollcall=True,
+            manual_qr=True,
+            local_scanner=True,
+            direct_code_lookup=True,
+        ),
+        notes="同 THU 的 WisdomGarden Keycloak CAS 登入（identity.nsysu.edu.tw realm nsysu），重用 thu_cas。登入導向已查證；尚未用真實帳號跑過端到端登入。",
+    ),
+    "cyut": ProviderDefinition(
+        key="cyut",
+        label="Chaoyang University of Technology TronClass",
+        base_url="https://tronclass.cyut.edu.tw",
+        login_url=(
+            "https://tcidentity.cyut.edu.tw/auth/realms/cyut/protocol/cas/login"
+            "?ui_locales=zh-TW&service=https%3A//tronclass.cyut.edu.tw/login&locale=zh_TW"
+        ),
+        auth_flow="thu_cas",
+        status="ready",
+        support_level="ready",
+        capabilities=ProviderCapabilities(
+            number=True,
+            radar=True,
+            qrcode=True,
+            course_discovery=True,
+            teacher_rollcall=True,
+            manual_qr=True,
+            local_scanner=True,
+            direct_code_lookup=True,
+        ),
+        notes="同 THU 的 WisdomGarden Keycloak CAS 登入（tcidentity.cyut.edu.tw realm cyut），重用 thu_cas。登入導向已查證；尚未用真實帳號跑過端到端登入。",
+    ),
+    "ntou": ProviderDefinition(
+        key="ntou",
+        label="National Taiwan Ocean University TronClass",
+        base_url="https://tronclass.ntou.edu.tw",
+        login_url=(
+            "https://tccas.ntou.edu.tw/cas/login"
+            "?ui_locales=zh-TW&service=https%3A//tronclass.ntou.edu.tw/login&locale=zh_TW"
+        ),
+        auth_flow="tronclass_form_captcha",
+        status="ready",
+        support_level="ready",
+        capabilities=ProviderCapabilities(
+            number=True,
+            radar=True,
+            qrcode=True,
+            course_discovery=True,
+            teacher_rollcall=True,
+            manual_qr=True,
+            local_scanner=True,
+            direct_code_lookup=True,
+        ),
+        notes="Apereo CAS + 圖形驗證碼（同 FJU，重用 tronclass_form_captcha；裝 .[ocr] 自動辨識、否則人工輸入）。CAS 主機 tccas.ntou.edu.tw 與 app 主機不同，故 login_url 直指 CAS。登入導向＋驗證碼頁已查證；尚未用真實帳號跑過端到端登入。",
+    ),
 }
 
 PROVIDER_ALIASES = {
@@ -215,6 +284,23 @@ PROVIDER_ALIASES = {
     "www.tronclass.com.tw": "tronclass",
     "官方": "tronclass",
     "官方站": "tronclass",
+    "nsysu.edu": "nsysu",
+    "elearn.nsysu": "nsysu",
+    "中山": "nsysu",
+    "中山大學": "nsysu",
+    "國立中山大學": "nsysu",
+    "cyut.edu": "cyut",
+    "tronclass.cyut": "cyut",
+    "朝陽": "cyut",
+    "朝陽科大": "cyut",
+    "朝陽科技大學": "cyut",
+    "ntou.edu": "ntou",
+    "tronclass.ntou": "ntou",
+    "海大": "ntou",
+    "海洋大學": "ntou",
+    "臺灣海洋大學": "ntou",
+    "台灣海洋大學": "ntou",
+    "國立臺灣海洋大學": "ntou",
 }
 
 

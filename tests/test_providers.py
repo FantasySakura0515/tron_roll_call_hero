@@ -38,6 +38,63 @@ class ProviderConfigTest(unittest.TestCase):
         self.assertEqual(get_provider("www.tronclass.com.tw").key, "tronclass")
         self.assertEqual(get_provider("not-a-provider").key, DEFAULT_PROVIDER)
 
+    def test_nsysu_and_cyut_are_ready_keycloak_cas_providers(self) -> None:
+        cases = (
+            ("nsysu", "https://elearn.nsysu.edu.tw", "identity.nsysu.edu.tw", "nsysu"),
+            ("cyut", "https://tronclass.cyut.edu.tw", "tcidentity.cyut.edu.tw", "cyut"),
+        )
+        for key, base_url, identity_host, realm in cases:
+            with self.subTest(provider=key):
+                provider = get_provider(key)
+                self.assertEqual(provider.key, key)
+                self.assertTrue(provider.ready)
+                self.assertTrue(provider.user_visible)
+                self.assertEqual(provider.base_url, base_url)
+                # NSYSU/CYUT use the same WisdomGarden Keycloak CAS login as THU,
+                # so they reuse the thu_cas auth flow with their own realm/host.
+                self.assertEqual(provider.auth_flow, "thu_cas")
+                self.assertIn(identity_host, provider.login_url)
+                self.assertIn(
+                    "/auth/realms/{}/protocol/cas/login".format(realm),
+                    provider.login_url,
+                )
+                self.assertIn("service=https%3A//", provider.login_url)
+                self.assertTrue(provider.capabilities.number)
+                self.assertTrue(provider.capabilities.radar)
+                self.assertTrue(provider.capabilities.qrcode)
+                self.assertTrue(provider.capabilities.course_discovery)
+                self.assertIn("/api/radar/rollcalls", provider.rollcalls_url)
+
+    def test_nsysu_and_cyut_aliases_resolve(self) -> None:
+        for alias in ("nsysu", "NSYSU", "中山", "中山大學", "國立中山大學"):
+            with self.subTest(alias=alias):
+                self.assertEqual(get_provider(alias).key, "nsysu")
+        for alias in ("cyut", "CYUT", "朝陽", "朝陽科大", "朝陽科技大學"):
+            with self.subTest(alias=alias):
+                self.assertEqual(get_provider(alias).key, "cyut")
+
+    def test_ntou_is_ready_cas_captcha_provider(self) -> None:
+        provider = get_provider("ntou")
+        self.assertEqual(provider.key, "ntou")
+        self.assertTrue(provider.ready)
+        self.assertTrue(provider.user_visible)
+        self.assertEqual(provider.base_url, "https://tronclass.ntou.edu.tw")
+        # NTOU is Apereo CAS WITH a graphical captcha (same as FJU), so it reuses
+        # the tronclass_form_captcha flow. Its CAS host differs from the app host,
+        # so login_url points straight at the CAS host for correct form resolution.
+        self.assertEqual(provider.auth_flow, "tronclass_form_captcha")
+        self.assertIn("tccas.ntou.edu.tw/cas/login", provider.login_url)
+        self.assertIn("service=https%3A//tronclass.ntou.edu.tw", provider.login_url)
+        self.assertTrue(provider.capabilities.number)
+        self.assertTrue(provider.capabilities.radar)
+        self.assertTrue(provider.capabilities.qrcode)
+        self.assertIn("/api/radar/rollcalls", provider.rollcalls_url)
+
+    def test_ntou_aliases_resolve(self) -> None:
+        for alias in ("ntou", "NTOU", "海大", "海洋大學", "臺灣海洋大學", "國立臺灣海洋大學"):
+            with self.subTest(alias=alias):
+                self.assertEqual(get_provider(alias).key, "ntou")
+
     def test_registry_marks_fju_visible_with_captcha_flow(self) -> None:
         registry = provider_registry_config()
 
@@ -64,13 +121,13 @@ class ProviderConfigTest(unittest.TestCase):
     def test_supported_provider_registry_includes_fju(self) -> None:
         self.assertEqual(
             [provider.key for provider in list_supported_providers()],
-            ["fju", "thu", "tku", "tronclass"],
+            ["cyut", "fju", "nsysu", "ntou", "thu", "tku", "tronclass"],
         )
         self.assertEqual(
             [provider.key for provider in list_supported_providers(include_hidden=True)],
-            ["fju", "thu", "tku", "tronclass"],
+            ["cyut", "fju", "nsysu", "ntou", "thu", "tku", "tronclass"],
         )
-        self.assertEqual([provider.key for provider in list_all_providers()], ["fju", "thu", "tku", "tronclass"])
+        self.assertEqual([provider.key for provider in list_all_providers()], ["cyut", "fju", "nsysu", "ntou", "thu", "tku", "tronclass"])
 
     def test_tronclass_api_endpoint_builder_is_shared(self) -> None:
         endpoints = tronclass_api_endpoints("https://school.example/")
@@ -232,7 +289,7 @@ class ResearchModeConfigTest(unittest.TestCase):
         )
 
     def _seed_cookie_for_manual_provider(self, provider_key: str, server: FakeTronServer, session) -> None:
-        if provider_key == "fju":
+        if provider_key in ("fju", "ntou"):
             session.cookie_jar.update_cookies(
                 {"session": server.session_cookie},
                 response_url=URL(server.base_url),
@@ -323,6 +380,20 @@ class ResearchModeConfigTest(unittest.TestCase):
 
     def test_tronclass_provider_endpoints_can_target_fake_server(self) -> None:
         result = __import__("asyncio").run(self._discover_courses_with_provider("tronclass"))
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["course_count"], 1)
+
+    def test_nsysu_cyut_provider_endpoints_can_target_fake_server(self) -> None:
+        for provider in ("nsysu", "cyut"):
+            with self.subTest(provider=provider):
+                result = __import__("asyncio").run(self._discover_courses_with_provider(provider))
+
+                self.assertEqual(result["status"], "ok")
+                self.assertEqual(result["course_count"], 1)
+
+    def test_ntou_provider_endpoints_can_target_fake_server(self) -> None:
+        result = __import__("asyncio").run(self._discover_courses_with_provider("ntou"))
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["course_count"], 1)
